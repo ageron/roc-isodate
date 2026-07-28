@@ -1,158 +1,254 @@
-module [
-    nanos_to_frac_str,
-    replace_fx_format,
-    compare_values,
-    expand_int_with_zeros,
-    utf8_to_frac,
-    utf8_to_int,
-    utf8_to_int_signed,
-    validate_utf8_single_bytes,
-]
+Utils :: {}.{
+	nanos_to_frac_str : I32 -> Str
+	nanos_to_frac_str = |nanos| {
+		length = count_frac_width(nanos)
+		num_str = trim_to_last_sig_fig(nanos).drop_prefix("-")->pad_left_ascii('0', length)
+		untrimmed_str = if nanos == 0 {
+			""
+		} else {
+			Str.concat(",", num_str)
+		}
+		untrimmed_str.to_utf8().take_first(length + 1)->Str.from_utf8_lossy()
+	}
 
-import rtils.ListUtils exposing [split_with_delims]
-import rtils.StrUtils exposing [pad_left_ascii]
-import parse.Parse as P
+	replace_fx_format : Str, I32 -> Str
+	replace_fx_format = |str, nanos| {
+		frac_fmt = get_frac_format(str)
+		if frac_fmt == "" {
+			str
+		} else {
+			len = parse_frac_fmt(frac_fmt)
+			frac_str = nanos_to_frac_str(nanos).drop_prefix(",").to_utf8().take_first(len)->Str.from_utf8_lossy()
+			str->replace_first(frac_fmt, frac_str)
+		}
+	}
 
-nanos_to_frac_str : Int _ -> Str
-nanos_to_frac_str = |nanos|
-    length = count_frac_width(nanos)
-    num_str = trim_to_last_sig_fig(nanos) |> Str.drop_prefix("-") |> StrUtils.pad_left_ascii('0', length)
-    untrimmed_str = (if nanos == 0 then "" else Str.concat(",", num_str))
-    untrimmed_str |> Str.to_utf8 |> List.take_first((length + 1)) |> Str.from_utf8_lossy
+	validate_utf8_single_bytes : List(U8) -> Bool
+	validate_utf8_single_bytes = |u8_list| u8_list.all(|b| b < 128)
 
-trim_to_last_sig_fig : Int _ -> Str
-trim_to_last_sig_fig = |num|
-    Num.to_str(num) |> drop_trailing_zeros
+	utf8_to_int : List(U8) -> Try(U64, [InvalidBytes])
+	utf8_to_int = |u8_list| {
+		u8_list
+			.rev()
+			.fold_with_index(
+				Ok(0),
+				|num_result, byte, index| {
+					num = num_result?
+					if 0x30 <= byte and byte <= 0x39 {
+						Ok(num + (byte.to_u64() - 0x30) * (10->pow_int(index)))
+					} else {
+						Err(InvalidBytes)
+					}
+				},
+			)
+	}
+
+	utf8_to_int_signed : List(U8) -> Try(I64, [InvalidBytes])
+	utf8_to_int_signed = |u8_list| {
+		match u8_list {
+			['-', .. as xs] => {
+				num = utf8_to_int(xs)?
+				Ok(-1 * num.to_i64_wrap())
+			}
+			['+', .. as xs] => {
+				num = utf8_to_int(xs)?
+				Ok(num.to_i64_wrap())
+			}
+			_ => {
+				num = utf8_to_int(u8_list)?
+				Ok(num.to_i64_wrap())
+			}
+		}
+	}
+
+	utf8_to_frac : List(U8) -> Try(F64, [InvalidBytes])
+	utf8_to_frac = |u8_list| {
+		match split_with_delims(u8_list, |b| b == ',' or b == '.') {
+			[head, [byte], tail] if byte == ',' or byte == '.' => {
+				int_part = utf8_to_int(head)?
+				frac_part = utf8_to_int(tail)?
+				decimal_shift = tail.len().to_u8_wrap()
+				Ok(int_part.to_f64() + move_decimal_point(frac_part.to_f64(), decimal_shift))
+			}
+
+			[[','], tail] => {
+				frac_part = utf8_to_int(tail)?
+				decimal_shift = tail.len().to_u8_wrap()
+				Ok(move_decimal_point(frac_part.to_f64(), decimal_shift))
+			}
+
+			[['.'], tail] => {
+				frac_part = utf8_to_int(tail)?
+				decimal_shift = tail.len().to_u8_wrap()
+				Ok(move_decimal_point(frac_part.to_f64(), decimal_shift))
+			}
+
+			[head, [byte]] if byte == ',' or byte == '.' => {
+				int_part = utf8_to_int(head)?
+				Ok(int_part.to_f64())
+			}
+
+			_ => {
+				int_part = utf8_to_int(u8_list)?
+				Ok(int_part.to_f64())
+			}
+		}
+	}
+
+	expand_int_with_zeros = |num, target_length| {
+		num.to_str().pad_left_ascii('0', target_length)
+	}
+
+	split_at_indices = |list, indices| {
+		help = |output, remaining_items, remaining_indices, current_index| {
+			match remaining_indices {
+				[] => output.append(remaining_items)
+				[index, .. as other_indices] => {
+					split_index = if index >= current_index {
+						index - current_index
+					} else {
+						0
+					}
+					{ before, others } = remaining_items.split_at(split_index)
+					help(output.append(before), others, other_indices, current_index + index)
+				}
+			}
+		}
+		help([], list, indices.sort_with(|a, b| a.compare(b)), 0)
+	}
+
+	split_with_delims = |list, is_delim| {
+		split_with_delims_help(list, is_delim, [], [])
+	}
+}
+
+split_with_delims_help = |list, check_delim, acc, curr| {
+	match list {
+		[] => {
+			if curr.len() == 0 {
+				acc
+			} else {
+				acc.concat([curr])
+			}
+		}
+		[x, .. as xs] => {
+			if check_delim(x) {
+				new_acc = 
+					if curr.len() == 0 {
+						acc.concat([[x]])
+					} else {
+						acc.concat([curr, [x]])
+					}
+				split_with_delims_help(xs, check_delim, new_acc, [])
+			} else {
+				split_with_delims_help(xs, check_delim, acc, curr.append(x))
+			}
+		}
+	}
+}
+
+pad_left_ascii : Str, U8, U64 -> Str
+pad_left_ascii = |str, char, target_length| {
+	str_len = str.to_utf8().len()
+	if str_len >= target_length {
+		str
+	} else {
+		pad_len = target_length - str_len
+		padding = List.repeat(char, pad_len)
+		padding_str = padding->Str.from_utf8_lossy()
+		padding_str.concat(str)
+	}
+}
+
+trim_to_last_sig_fig : I32 -> Str
+trim_to_last_sig_fig = |num| {
+	num.to_str()->drop_trailing_zeros()
+}
 
 drop_trailing_zeros : Str -> Str
-drop_trailing_zeros = |str|
-    str |> Str.to_utf8 |> drop_trailing_zeros_help |> Str.from_utf8_lossy
-    
-drop_trailing_zeros_help = |bytes|
-    when bytes is
-        [.. as head, '0'] -> drop_trailing_zeros_help(head)
-        _ -> bytes
+drop_trailing_zeros = |str| {
+	str.to_utf8()->drop_trailing_zeros_help()->Str.from_utf8_lossy()
+}
 
-count_frac_width : Int _ -> Int _
-count_frac_width = |num|
-    9 - count_frac_width_help(num, 0) 
+drop_trailing_zeros_help : List(U8) -> List(U8)
+drop_trailing_zeros_help = |bytes| {
+	match bytes {
+		[.. as head, '0'] => drop_trailing_zeros_help(head)
+		_ => bytes
+	}
+}
 
-count_frac_width_help : Int _, Int _ -> Int _
-count_frac_width_help = |num, width|
-    if num == 0 then
-        0
-    else if num % 10 == 0 then
-        count_frac_width_help((num // 10), (width + 1))
-    else
-        width
+count_frac_width = |num| {
+	9 - count_frac_width_help(num, 0)
+}
 
-replace_fx_format = |str, nanos|
-    frac_fmt = get_frac_format(str)
-    if frac_fmt == "" then
-        str
-    else
-        len = parse_frac_fmt(frac_fmt)
-        frac_str = Utils.nanos_to_frac_str(nanos) |> Str.drop_prefix(",") |> Str.to_utf8 |> List.take_first(len) |> Str.from_utf8_lossy
-        str |> Str.replace_first(frac_fmt, frac_str)
+count_frac_width_help = |num, width| {
+	if num == 0 {
+		0
+	} else if num % 10 == 0 {
+		count_frac_width_help((num // 10), (width + 1))
+	} else {
+		width
+	}
+}
 
-get_frac_format = |str|
-    bytes = str |> Str.to_utf8
-    (first, last, _) = 
-        List.walk_with_index_until(
-            bytes,
-            (0, 0, Bool.false),
-            |(start, end, is_frac), c, i|
-                if c == '{' then
-                    when (List.get(bytes, i + 1), List.get(bytes, i + 2)) is
-                        (Ok('f'), Ok(':')) -> Continue((i, i, Bool.true))
-                        _ -> Continue((start, end, is_frac))
-                else if c == '}' and is_frac then
-                    Break((start, i, is_frac))
-                else
-                    Continue((start, end, is_frac)),
-        )
-    if first != last then
-        List.sublist(bytes, { start: first, len: last - first + 1 }) |> Str.from_utf8_lossy
-    else
-        ""
-    
+get_frac_format : Str -> Str
+get_frac_format = |str| {
+	bytes = str.to_utf8()
+	(first, last, _) = 
+		bytes.fold_with_index_until(
+			(0, 0, Bool.False),
+			|(start, end, is_frac), c, i| {
+				if c == '{' {
+					match (bytes.get(i + 1), bytes.get(i + 2)) {
+						(Ok('f'), Ok(':')) => Continue((i, i, Bool.True))
+						_ => Continue((start, end, is_frac))
+					}
+				} else if c == '}' and is_frac {
+					Break((start, i, is_frac))
+				} else {
+					Continue((start, end, is_frac))
+				}
+			},
+		)
+	if first != last {
+		bytes.sublist({ start: first, len: last - first + 1 })->Str.from_utf8_lossy()
+	} else {
+		""
+	}
+}
+
 parse_frac_fmt : Str -> U64
-parse_frac_fmt = |str|
-    open_brace = P.char |> P.filter(|c| c == '{')
-    close_brace = P.char |> P.filter(|c| c == '}')
-    f = P.char |> P.filter(|c| c == 'f')
-    colon = P.char |> P.filter(|c| c == ':')
-    parser = open_brace |> P.rhs(f) |> P.rhs(colon) |> P.rhs(P.integer) |> P.lhs(close_brace)
-    parser(str) |> P.finalize |> Result.with_default 9
-
-validate_utf8_single_bytes : List U8 -> Bool
-validate_utf8_single_bytes = |u8_list| List.all(u8_list, |b| b < 128)
-
-utf8_to_int : List U8 -> Result U64 [InvalidBytes]
-utf8_to_int = |u8_list|
-    u8_list
-    |> List.reverse
-    |> List.walk_with_index(
-        Ok(0),
-        |num_result, byte, index|
-            Result.try(
-                num_result,
-                |num|
-                    if 0x30 <= byte and byte <= 0x39 then
-                        Ok((num + (Num.to_u64(byte) - 0x30) * (Num.to_u64(Num.pow_int(10, index)))))
-                    else
-                        Err(InvalidBytes),
-            ),
-    )
-
-utf8_to_int_signed : List U8 -> Result I64 [InvalidBytes]
-utf8_to_int_signed = |u8_list|
-    when u8_list is
-        ['-', .. as xs] -> utf8_to_int(xs) |> Result.map_ok(|num| -1 * Num.to_i64(num))
-        ['+', .. as xs] -> utf8_to_int(xs) |> Result.map_ok(|num| Num.to_i64(num))
-        _ -> utf8_to_int(u8_list) |> Result.map_ok(|num| Num.to_i64(num))
-
-utf8_to_frac : List U8 -> Result F64 [InvalidBytes]
-utf8_to_frac = |u8_list|
-    when split_with_delims(u8_list, |b| b == ',' or b == '.') is
-        [head, [byte], tail] if byte == ',' or byte == '.' ->
-            when (utf8_to_int(head), utf8_to_int(tail)) is
-                (Ok(int_part), Ok(frac_part)) ->
-                    decimal_shift = List.len(tail) |> Num.to_u8
-                    Num.to_f64(int_part) + move_decimal_point(Num.to_f64(frac_part), decimal_shift) |> Ok
-
-                (_, _) -> Err(InvalidBytes)
-
-        [[','], tail] -> # if byte == ',' || byte == '.' -> # crashes when using byte comparison
-            frac_part = utf8_to_int(tail)?
-            decimal_shift = List.len(tail) |> Num.to_u8
-            Ok(move_decimal_point(Num.to_f64(frac_part), decimal_shift))
-
-        [['.'], tail] -> # if byte == ',' || byte == '.' -> # crashes when using byte comparison
-            frac_part = utf8_to_int(tail)?
-            decimal_shift = List.len(tail) |> Num.to_u8
-            Ok(move_decimal_point(Num.to_f64(frac_part), decimal_shift))
-
-        [head, [byte]] if byte == ',' or byte == '.' ->
-            int_part = utf8_to_int(head)?
-            Ok(Num.to_f64(int_part))
-
-        _ ->
-            int_part = utf8_to_int(u8_list)?
-            Ok(Num.to_f64(int_part))
+parse_frac_fmt = |fmt| {
+	fmt.drop_prefix("{f:").drop_suffix("}")->U64.from_str() ?? 9
+}
 
 move_decimal_point : F64, U8 -> F64
-move_decimal_point = |num, digits|
-    when digits is
-        0 -> num
-        _ -> (move_decimal_point(num, (digits - 1))) / 10
+move_decimal_point = |num, digits| {
+	match digits {
+		0 => num
+		_ => (move_decimal_point(num, digits - 1)) / 10
+	}
+}
 
-expand_int_with_zeros : Int *, U64 -> Str
-expand_int_with_zeros = |num, target_length|
-    num |> Num.to_str |> pad_left_ascii('0', target_length)
+pow_int = |base, exp| {
+	pow_int_help(base, exp, 1)
+}
 
-expect expand_int_with_zeros(123, 5) == "00123"
-expect expand_int_with_zeros(1230, 5) == "01230"
+pow_int_help = |base, exp, acc| {
+	match exp {
+		0 => acc
+		_ => pow_int_help(base, exp - 1, acc * base)
+	}
+}
 
-compare_values : Num a, Num a -> [LT, EQ, GT]
-compare_values = |x, y| if x < y then LT else if x > y then GT else EQ
+replace_first = |str, from, to| {
+	match str.split_on(from) {
+		[] => str
+		[_] => str
+		[first, .. as rest] => {
+			after = rest->Str.join_with(from)
+			[first, after]->Str.join_with(to)
+		}
+	}
+}

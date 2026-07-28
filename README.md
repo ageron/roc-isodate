@@ -19,7 +19,7 @@ Note that due to the expense of purchasing the ISO 8601-2:2019 standard document
 - Full support for parseing local time representations.
 - Full support for offset from UTC time representations.
 - Full support for combined date/time representations.
-- Can Parse from `Str` or from a `List U8` of Utf-8 bytes.
+- Can Parse from `Str` or from a `List(U8)` of Utf-8 bytes.
 - Unify API around `Date`/`Time`/`DateTime` types
   - This means converting to and from ISO strings is as simple as:
   - `DateTime.from_iso_str(str)` or `Time.to_iso_str(date)`

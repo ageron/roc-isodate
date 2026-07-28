@@ -1,26 +1,30 @@
-## A small effectful module to get the current date/time as Date, Time, or DateTime objects in a single call.
-## ```
-## import dt.Now {
-##     now!: Utc.now!,
-##     now_to_nanos: Utc.to_nanos_since_epoch,
-## }
-## ```
-module { now!, now_to_nanos } -> [date_time!, date!, time!]
-
 import Const
 import DateTime exposing [DateTime]
 import Date exposing [Date]
 import Time exposing [Time]
 
-## Get the current system time as a `DateTime`.
-date_time! : {} => DateTime
-date_time! = |{}| now!({}) |> now_to_nanos |> DateTime.from_nanos_since_epoch
+Now(a) :: { now! : {} => a, now_to_nanos : a -> U64 }.{
+	create : { now! : {} => a, now_to_nanos : a -> U64 } -> Now(a)
+	create = |{ now!, now_to_nanos }| { now!, now_to_nanos }
 
-## Get the current system time as a `Date`.
-date! : {} => Date
-date! = |{}| now!({}) |> now_to_nanos |> Date.from_nanos_since_epoch
+	date_time! : Now(a) => DateTime
+	date_time! = |{ now!, now_to_nanos }| {
+		now!({})
+			->now_to_nanos()
+			->DateTime.from_nanos_since_epoch()
+	}
 
-## Get the current system time as a `Time`.
-time! : {} => Time
-time! = |{}| now!({}) |> now_to_nanos |> |ns| ns % Const.nanos_per_day |> Time.from_nanos_since_midnight
+	date! : Now(a) => Date
+	date! = |{ now!, now_to_nanos }| {
+		now!({})
+			->now_to_nanos()
+			->Date.from_nanos_since_epoch()
+	}
 
+	time! : Now(a) => Time
+	time! = |{ now!, now_to_nanos }| {
+		ns = now!({})->now_to_nanos()
+		(ns % Const.nanos_per_day)
+			->Time.from_nanos_since_midnight()
+	}
+}
