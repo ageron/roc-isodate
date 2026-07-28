@@ -13,6 +13,7 @@ import Utils
 ## }
 ## ```
 Duration :: { days : I64, hours : I8, minutes : I8, seconds : I8, nanoseconds : I32 }.{
+
 	## Add two `Duration` objects.
 	add : Duration, Duration -> Duration
 	add = |d1, d2| {

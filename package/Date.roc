@@ -19,6 +19,7 @@ Date :: {
 	day_of_month : U8,
 	day_of_year : U16,
 }.{
+
 	## Same as [`add_duration`](Date#add_duration).
 	add : Date, Duration -> Date
 	add = add_duration

@@ -28,6 +28,7 @@ import Utils exposing [
 ## }
 ## ```
 Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
+
 	## Same as [`add_duration`](Time#add_duration)
 	add : Time, Duration -> Time
 	add = add_duration
