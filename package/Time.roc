@@ -1,3 +1,6 @@
+## The Time module provides the `Time` type as well as functions for working with time values.
+##
+## These functions include functions for creating `Time` objects from various numeric values, converting `Time`s to and from ISO 8601 strings, and performing arithmetic operations on `Time`s.
 import Const
 import Const exposing [
 	nanos_per_hour,
@@ -15,10 +18,21 @@ import Utils exposing [
 	split_with_delims,
 ]
 
+## Object representing a time of day. Hours may be less than 0 or greater than 24.
+## ```
+## Time : {
+##     hour : I8,
+##     minute : U8,
+##     second : U8,
+##     nanosecond : U32
+## }
+## ```
 Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
+	## Same as [`add_duration`](Time#add_duration)
 	add : Time, Duration -> Time
 	add = add_duration
 
+	## Add a `Duration` object to a `Time` object. (May be deprecated in favor of [`add`](Time#add) in the future.)
 	add_duration : Time, Duration -> Time
 	add_duration = |time, duration| {
 		duration_nanos = duration.to_nanoseconds()
@@ -26,26 +40,36 @@ Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
 		from_nanos_since_midnight(duration_nanos + time_nanos)
 	}
 
+	## Add hours to a `Time` object.
 	add_hours : Time, h -> Time where [h.to_i64 : h -> I64]
 	add_hours = |time, hours| add_nanoseconds(time, hours * Const.nanos_per_hour)
 
+	## Add minutes to a `Time` object.
 	add_minutes : Time, m -> Time where [m.to_i64 : m -> I64]
 	add_minutes = |time, minutes| add_nanoseconds(time, minutes * Const.nanos_per_minute)
 
+	## Add nanoseconds to a `Time` object.
 	add_nanoseconds : Time, n -> Time where [n.to_i64 : n -> I64]
 	add_nanoseconds = |time, nanos| {
 		from_nanos_since_midnight(to_nanos_since_midnight(time) + nanos.to_i64())
 	}
 
+	## Add seconds to a `Time` object.
 	add_seconds : Time, s -> Time where [s.to_i64 : s -> I64]
 	add_seconds = |time, seconds| add_nanoseconds(time, seconds * Const.nanos_per_second)
 
+	## Determine if the first `Time` occurs after the second `Time`.
 	after : Time, Time -> Bool
 	after = |a, b| compare(a, b) == GT
 
+	## Determine if the first `Time` occurs before the second `Time`.
 	before : Time, Time -> Bool
 	before = |a, b| compare(a, b) == LT
 
+	## Compare two `Time` objects.
+	## If the first occurs before the second, it returns LT.
+	## If the first and the second are equal, it returns EQ.
+	## If the first occurs after the second, it returns GT.
 	compare : Time, Time -> [LT, EQ, GT]
 	compare = |a, b| {
 		a.hour.compare(b.hour)
@@ -66,9 +90,21 @@ Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
 			})
 	}
 
+	## Determine if the first `Time` is equal to the second `Time`.
 	equal : Time, Time -> Bool
 	equal = |a, b| compare(a, b) == EQ
 
+	## Format a `Time` object according to the given format string.
+	## The following placeholders are supported:
+	## - `{hh}`: 2-digit hour (00-23)
+	## - `{h}`: hour (0-23)
+	## - `{mm}`: 2-digit minute (00-59)
+	## - `{m}`: minute (0-59)
+	## - `{ss}`: 2-digit second (00-59)
+	## - `{s}`: second (0-59)
+	## - `{f}` or `{f:}`: fractional part of the second
+	## - `{f:x}`: fractional part of the second with x digits
+	## - `{n}`: nanosecond (0-999,999,999)
 	format : Time, Str -> Str
 	format = |time, fmt| {
 		(
@@ -84,15 +120,19 @@ Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
 		).replace_first("{n}", time.nanosecond.to_str())
 	}
 
+	## Create a `Time` object from the hour, minute, and second.
 	from_hms : h, m, s -> Time where [h.to_i64 : h -> I64, m.to_i64 : m -> I64, s.to_i64 : s -> I64]
 	from_hms = |hour, minute, second| { hour: hour.to_i8(), minute: minute.to_u8(), second: second.to_u8(), nanosecond: (0).u32 }
 
+	## Create a `Time` object from the hour, minute, second, and nanosecond.
 	from_hmsn : h, m, s, n -> Time where [h.to_i64 : h -> I64, m.to_i64 : m -> I64, s.to_i64 : s -> I64, n.to_i64 : n -> I64]
 	from_hmsn = |hour, minute, second, nanosecond| { hour: hour.to_i8(), minute: minute.to_u8(), second: second.to_u8(), nanosecond: nanosecond.to_u32() }
 
+	## Convert an ISO 8601 string to a `Time` object.
 	from_iso_str : Str -> Try(Time, [InvalidTimeFormat])
 	from_iso_str = |str| str.to_utf8()->from_iso_u8()
 
+	## Convert an ISO 8601 list of UTF-8 bytes to a `Time` object.
 	from_iso_u8 : List(U8) -> Try(Time, [InvalidTimeFormat])
 	from_iso_u8 = |bytes| {
 		if validate_utf8_single_bytes(bytes) {
@@ -126,6 +166,7 @@ Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
 		}
 	}
 
+	## Convert nanoseconds since midnight to a `Time` object.
 	from_nanos_since_midnight : n -> Time where [n.to_i64 : n -> I64]
 	from_nanos_since_midnight = |nanos| {
 		nanos1 = ((nanos % Const.nanos_per_day + Const.nanos_per_day) % Const.nanos_per_day).to_u64()
@@ -135,19 +176,22 @@ Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
 		second = (nanos3 // nanos_per_second).to_u8()
 		nanosecond = (nanos3 % nanos_per_second).to_u32()
 		casted_val = (minute.to_i64() * nanos_per_minute + second.to_i64() * nanos_per_second + nanosecond.to_i64()).cast()
-		hour = ((nanos - casted_val) // nanos_per_hour).to_i8()
+		hour = ((nanos - casted_val) // nanos_per_hour).to_i8() # % Const.hoursPerDay |> Num.toI8
 		{ hour, minute, second, nanosecond }
 	}
 
+	## `Time` object representing 00:00:00.
 	midnight : Time
 	midnight = { hour: 0, minute: 0, second: 0, nanosecond: 0 }
 
+	## Normalize a `Time` object to ensure that the hour is between 0 and 23.
 	normalize : Time -> Time
 	normalize = |time| {
 		h_normalized = ((time.hour.to_i64() % Const.hours_per_day.to_i64() + Const.hours_per_day.to_i64()) % Const.hours_per_day.to_i64()).to_i8()
 		from_hmsn(h_normalized, time.minute, time.second, time.nanosecond)
 	}
 
+	## Subtract two `Time` objects to get the `Duration` between them.
 	sub : Time, Time -> Duration
 	sub = |a, b| {
 		a_nanos = to_nanos_since_midnight(a)
@@ -155,6 +199,7 @@ Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
 		Duration.from_nanoseconds(a_nanos - b_nanos)
 	}
 
+	## Convert a `Time` object to an ISO 8601 string.
 	to_iso_str : Time -> Str
 	to_iso_str = |time| {
 		expand_int_with_zeros(time.hour, 2)
@@ -165,9 +210,11 @@ Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
 			.concat(Utils.nanos_to_frac_str(time.nanosecond))
 	}
 
+	## Convert a `Time` object to an ISO 8601 list of UTF-8 bytes.
 	to_iso_u8 : Time -> List(U8)
 	to_iso_u8 = |time| to_iso_str(time).to_utf8()
 
+	## Convert a `Time` object to the number of nanoseconds since midnight.
 	to_nanos_since_midnight : Time -> I64
 	to_nanos_since_midnight = |time| {
 		h_nanos = time.hour.to_i64() * Const.nanos_per_hour.to_i64()
@@ -203,31 +250,31 @@ parse_fractional_time : List(U8), List(U8) -> Try(Time, [InvalidTimeFormat])
 parse_fractional_time = |whole_bytes, fractional_bytes| {
 	add_duration_and_time = |d, t| Time.add_duration(t, d)
 	match (whole_bytes, utf8_to_frac(fractional_bytes)) {
-		([_, _], Ok(frac)) => {
+		([_, _], Ok(frac)) => { # hh
 			time = parse_local_time_hour(whole_bytes)?
 			ns = (frac * Const.nanos_per_hour.to_f64())->round()
 			Duration.from_nanoseconds(ns)->add_duration_and_time(time)->Ok
 		}
 
-		([_, _, _, _], Ok(frac)) => {
+		([_, _, _, _], Ok(frac)) => { # hhmm
 			time = parse_local_time_minute_basic(whole_bytes)?
 			ns = (frac * Const.nanos_per_minute.to_f64())->round()
 			Duration.from_nanoseconds(ns)->add_duration_and_time(time)->Ok
 		}
 
-		([_, _, ':', _, _], Ok(frac)) => {
+		([_, _, ':', _, _], Ok(frac)) => { # hh:mm
 			time = parse_local_time_minute_extended(whole_bytes)?
 			ns = (frac * Const.nanos_per_minute.to_f64())->round()
 			Duration.from_nanoseconds(ns)->add_duration_and_time(time)->Ok
 		}
 
-		([_, _, _, _, _, _], Ok(frac)) => {
+		([_, _, _, _, _, _], Ok(frac)) => { # hhmmss
 			time = parse_local_time_basic(whole_bytes)?
 			ns = (frac * Const.nanos_per_second.to_f64())->round()
 			Duration.from_nanoseconds(ns)->add_duration_and_time(time)->Ok
 		}
 
-		([_, _, ':', _, _, ':', _, _], Ok(frac)) => {
+		([_, _, ':', _, _, ':', _, _], Ok(frac)) => { # hh:mm:ss
 			time = parse_local_time_extended(whole_bytes)?
 			ns = (frac * Const.nanos_per_second.to_f64())->round()
 			Duration.from_nanoseconds(ns)->add_duration_and_time(time)->Ok

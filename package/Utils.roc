@@ -71,13 +71,13 @@ Utils :: {}.{
 				Ok(int_part.to_f64() + move_decimal_point(frac_part.to_f64(), decimal_shift))
 			}
 
-			[[','], tail] => {
+			[[','], tail] => { # if byte == ',' || byte == '.' -> # crashes when using byte comparison (TODO: check this is still true)
 				frac_part = utf8_to_int(tail)?
 				decimal_shift = tail.len().to_u8_wrap()
 				Ok(move_decimal_point(frac_part.to_f64(), decimal_shift))
 			}
 
-			[['.'], tail] => {
+			[['.'], tail] => { # if byte == ',' || byte == '.' -> # crashes when using byte comparison (TODO: check this is still true)
 				frac_part = utf8_to_int(tail)?
 				decimal_shift = tail.len().to_u8_wrap()
 				Ok(move_decimal_point(frac_part.to_f64(), decimal_shift))

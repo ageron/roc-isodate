@@ -1,7 +1,19 @@
+## The duration modules provides the `Duration` type and associated functions for representing time durations and performing date/time arithmetic.
 import Const
 import Utils
 
+## An object representing a time duration. Constructing a duration or performing math which would overflow the limits of the `Duration` will result in the value being saturated to the maximum or minimum value.
+## ```
+## Duration : {
+##     days : I64,
+##     hours : I8,
+##     minutes : I8,
+##     seconds : I8,
+##     nanoseconds : I32
+## }
+## ```
 Duration :: { days : I64, hours : I8, minutes : I8, seconds : I8, nanoseconds : I32 }.{
+	## Add two `Duration` objects.
 	add : Duration, Duration -> Duration
 	add = |d1, d2| {
 		nanos1 = to_nanoseconds(d1)
@@ -9,6 +21,18 @@ Duration :: { days : I64, hours : I8, minutes : I8, seconds : I8, nanoseconds : 
 		nanos1->add_saturated_i128(nanos2)->from_nanoseconds()
 	}
 
+	## Format a `Time` object according to the given format string.
+	## The following placeholders are supported:
+	## - `{d}`: day (0-Num.max_i64)
+	## - `{hh}`: 2-digit hour (00-23)
+	## - `{h}`: hour (0-23)
+	## - `{mm}`: 2-digit minute (00-59)
+	## - `{m}`: minute (0-59)
+	## - `{ss}`: 2-digit second (00-59)
+	## - `{s}`: second (0-59)
+	## - `{f}` or `{f:}`: fractional part of the second
+	## - `{f:x}`: fractional part of the second with x digits
+	## - `{n}`: nanosecond (0-999,999,999)
 	format : Duration, Str -> Str
 	format = |d, fmt| {
 		(
@@ -25,6 +49,18 @@ Duration :: { days : I64, hours : I8, minutes : I8, seconds : I8, nanoseconds : 
 		).replace_first("{n}", d.nanoseconds.to_str())
 	}
 
+	## Format a `Time` object according to the given format string. Negative numbers will not include a minus sign.
+	## The following placeholders are supported:
+	## - `{d}`: day (0-Num.max_i64)
+	## - `{hh}`: 2-digit hour (00-23)
+	## - `{h}`: hour (0-23)
+	## - `{mm}`: 2-digit minute (00-59)
+	## - `{m}`: minute (0-59)
+	## - `{ss}`: 2-digit second (00-59)
+	## - `{s}`: second (0-59)
+	## - `{f}` or `{f:}`: fractional part of the second
+	## - `{f:x}`: fractional part of the second with x digits
+	## - `{n}`: nanosecond (0-999,999,999)
 	format_unsigned : Duration, Str -> Str
 	format_unsigned = |d, fmt| {
 		(
@@ -42,6 +78,7 @@ Duration :: { days : I64, hours : I8, minutes : I8, seconds : I8, nanoseconds : 
 			.replace_each("-", "")
 	}
 
+	## Create a `Duration` object from days.
 	from_days : d -> Duration where [d.to_i64 : d -> I64]
 	from_days = |days| {
 		days_saturated = 
@@ -71,6 +108,7 @@ Duration :: { days : I64, hours : I8, minutes : I8, seconds : I8, nanoseconds : 
 		from_hours(hours)->add(from_minutes(minutes))->add(from_seconds(seconds))->add(from_nanoseconds(nanoseconds))
 	}
 
+	## Create a `Duration` object from hours.
 	from_hours : h -> Duration where [h.to_i64 : h -> I64]
 	from_hours = |hours| {
 		hours_saturated = 
@@ -90,6 +128,7 @@ Duration :: { days : I64, hours : I8, minutes : I8, seconds : I8, nanoseconds : 
 		}
 	}
 
+	## Create a `Duration` object from minutes.
 	from_minutes : m -> Duration where [m.to_i64 : m -> I64]
 	from_minutes = |minutes| {
 		minutes_saturated = 
@@ -109,6 +148,7 @@ Duration :: { days : I64, hours : I8, minutes : I8, seconds : I8, nanoseconds : 
 		}
 	}
 
+	## Create a `Duration` object from nanoseconds.
 	from_nanoseconds : n -> Duration where [n.to_i64 : n -> I64]
 	from_nanoseconds = |nanos| {
 		nanos_saturated = 
@@ -128,6 +168,7 @@ Duration :: { days : I64, hours : I8, minutes : I8, seconds : I8, nanoseconds : 
 		}
 	}
 
+	## Create a `Duration` object from seconds.
 	from_seconds : s -> Duration where [s.to_i64 : s -> I64]
 	from_seconds = |seconds| {
 		seconds_saturated = 
@@ -147,6 +188,7 @@ Duration :: { days : I64, hours : I8, minutes : I8, seconds : I8, nanoseconds : 
 		}
 	}
 
+	## Subtract two `Duration` objects.
 	sub : Duration, Duration -> Duration
 	sub = |d1, d2| {
 		nanos1 = to_nanoseconds(d1)
@@ -154,15 +196,18 @@ Duration :: { days : I64, hours : I8, minutes : I8, seconds : I8, nanoseconds : 
 		nanos1->sub_saturated_i128(nanos2)->from_nanoseconds()
 	}
 
+	## Convert a `Duration` object to days (truncates hours and lower).
 	to_days : Duration -> I64
 	to_days = |duration| duration.days
 
+	## Convert a `Duration` object to hours (truncates minutes and lower).
 	to_hours : Duration -> I64
 	to_hours = |duration| {
 		duration.hours.to_i64()
 			->add_saturated_i64(duration.days.to_i64()->mul_saturated_i64(24))
 	}
 
+	## Convert a `Duration` object to minutes (truncates seconds and lower).
 	to_minutes : Duration -> I64
 	to_minutes = |duration| {
 		duration.minutes.to_i64()
@@ -170,6 +215,7 @@ Duration :: { days : I64, hours : I8, minutes : I8, seconds : I8, nanoseconds : 
 			->add_saturated_i64(duration.days->mul_saturated_i64(Const.minutes_per_day.to_i64()))
 	}
 
+	## Convert a `Duration` object to nanoseconds.
 	to_nanoseconds : Duration -> I128
 	to_nanoseconds = |duration| {
 		duration.nanoseconds.to_i128()
@@ -179,6 +225,7 @@ Duration :: { days : I64, hours : I8, minutes : I8, seconds : I8, nanoseconds : 
 			->add_saturated_i128(duration.days.to_i128()->mul_saturated_i128(Const.nanos_per_day.to_i128()))
 	}
 
+	## Convert a `Duration` object to seconds (truncates nanoseconds).
 	to_seconds : Duration -> I64
 	to_seconds = |duration| {
 		duration.seconds.to_i64()
@@ -233,8 +280,8 @@ mul_saturated_i64 = |a, b| {
 }
 
 add_saturated_i128 = |a, b| {
-	max_i128 = 170141183460469231731687303715884105727
-	min_i128 = -170141183460469231731687303715884105728
+	max_i128 = I128.highest
+	min_i128 = I128.lowest
 	if b > 0 and a > max_i128 - b {
 		max_i128
 	} else if b < 0 and a < min_i128 - b {
@@ -245,8 +292,8 @@ add_saturated_i128 = |a, b| {
 }
 
 sub_saturated_i128 = |a, b| {
-	max_i128 = 170141183460469231731687303715884105727
-	min_i128 = -170141183460469231731687303715884105728
+	max_i128 = I128.highest
+	min_i128 = I128.lowest
 	if b < 0 and a > max_i128 + b {
 		max_i128
 	} else if b > 0 and a < min_i128 + b {
@@ -257,8 +304,8 @@ sub_saturated_i128 = |a, b| {
 }
 
 mul_saturated_i128 = |a, b| {
-	max_i128 = 170141183460469231731687303715884105727
-	min_i128 = -170141183460469231731687303715884105728
+	max_i128 = I128.highest
+	min_i128 = I128.lowest
 	if a == 0 or b == 0 {
 		0
 	} else if a > 0 {

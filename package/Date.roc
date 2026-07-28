@@ -1,21 +1,35 @@
+## The Date module provides the `Date` type, including various functions for working with dates.
+##
+## These functions include functions for creating dates from various numeric values, converting dates to and from ISO 8601 strings, and performing arithmetic operations on dates.
 import Const
 import Duration exposing [Duration, to_nanoseconds, from_days]
 import Utils exposing [expand_int_with_zeros, utf8_to_int, utf8_to_int_signed, validate_utf8_single_bytes, split_at_indices]
 
+## ```
+## Date :: {
+##     year: I64,
+##     month: U8,
+##     day_of_month: U8,
+##     day_of_year: U16
+## }
+## ```
 Date :: {
 	year : I64,
 	month : U8,
 	day_of_month : U8,
 	day_of_year : U16,
 }.{
+	## Same as [`add_duration`](Date#add_duration).
 	add : Date, Duration -> Date
 	add = add_duration
 
+	## Add the given number of days to the given `Date`.
 	add_days : Date, d -> Date where [d.to_i16 : d -> I16]
 	add_days = |date, days| {
 		add_days_helper(date, days.to_i16())
 	}
 
+	## Add the given `Date` and `Duration`. (May be deprecated in favor of [`add`](Date#add) in the future.)
 	add_duration : Date, Duration -> Date
 	add_duration = |date, duration| {
 		duration_nanos = duration.to_nanoseconds()
@@ -23,6 +37,8 @@ Date :: {
 		from_nanos_since_epoch(duration_nanos + date_nanos)
 	}
 
+	# TODO: allow for negative months
+	## Add the given number of months to the given `Date`.
 	add_months : Date, m -> Date where [m.to_u64 : m -> U64]
 	add_months = |date, months| {
 		new_month_with_overflow = date.month.to_u64() + months.to_u64()
@@ -37,19 +53,26 @@ Date :: {
 		from_ymd(new_year, new_month.to_u8(), new_day)
 	}
 
+	# TODO: allow for negative years
+	## Add the given number of years to the given `Date`.
 	add_years : Date, y -> Date where [y.to_i64 : y -> I64]
 	add_years = |date, years| from_ymd(date.year + years.to_i64(), date.month, date.day_of_month)
 
+	## Determine if the first `Date` falls after the second `Date`.
 	after : Date, Date -> Bool
 	after = |a, b| compare(a, b) == GT
 
+	## Determine if the first `Date` falls before the second `Date`.
 	before : Date, Date -> Bool
 	before = |a, b| compare(a, b) == LT
 
+	## Convert the given calendar week and year to the day of the year.
 	calendar_week_to_days_in_year : w, y -> U64 where [w.to_u64 : w -> U64, y.to_u64 : y -> U64]
 	calendar_week_to_days_in_year = |week, year| {
 		y = year.to_u64()
 		w = week.to_u64()
+		# Week 1 of a year is the first week with a majority of its days in that year
+		# https://en.wikipedia.org/wiki/ISO_week_date#First_week
 		length_of_maybe_first_week = 
 			if y >= Const.epoch_year.to_u64() {
 				Const.epoch_week_offset.to_u64() - (num_days_since_epoch_until_year(y.to_i64())).to_u64() % 7
@@ -63,6 +86,10 @@ Date :: {
 		}
 	}
 
+	## Compare two `Date` objects.
+	## If the first is before the second, it returns LT.
+	## If the first is after the second, it returns GT.
+	## If the first and the second are the equal, it returns EQ.
 	compare : Date, Date -> [LT, EQ, GT]
 	compare = |a, b| {
 		a.year.compare(b.year)
@@ -73,9 +100,18 @@ Date :: {
 			})
 	}
 
+	## Determine if the first `Date` equals the second `Date`.
 	equal : Date, Date -> Bool
 	equal = |a, b| compare(a, b) == EQ
 
+	## Format a `Date` object according to the given format string.
+	## The following placeholders are supported:
+	## - `{YYYY}`: 4-digit year
+	## - `{YY}`: 2-digit year
+	## - `{MM}`: 2-digit month (01-12)
+	## - `{M}`: month (1-12)
+	## - `{DD}`: 2-digit day of the month (01-31)
+	## - `{D}`: day of the month (1-31)
 	format : Date, Str -> Str
 	format = |date, fmt| {
 		fmt
@@ -87,9 +123,12 @@ Date :: {
 			.replace_first("{D}", date.day_of_month.to_str())
 	}
 
+	## Convert the given ISO 8601 string to a `Date`.
 	from_iso_str : Str -> Try(Date, [InvalidDateFormat])
 	from_iso_str = |str| str.to_utf8()->from_iso_u8()
 
+	# TODO: More efficient parsing method?
+	## Convert the given ISO 8601 list of UTF-8 bytes to a `Date`.
 	from_iso_u8 : List(U8) -> Try(Date, [InvalidDateFormat])
 	from_iso_u8 = |bytes| {
 		if validate_utf8_single_bytes(bytes) {
@@ -112,6 +151,7 @@ Date :: {
 		}
 	}
 
+	## Create a `Date` object from the given nanoseconds since the epoch.
 	from_nanos_since_epoch : n -> Date where [n.to_i64 : n -> I64]
 	from_nanos_since_epoch = |nanos| {
 		days = nanos // Const.nanos_per_day.to_i64()
@@ -123,6 +163,7 @@ Date :: {
 		from_nanos_helper(days_adjusted.to_i128(), 1970)
 	}
 
+	## Create a `Date` object from the given year and day of the year.
 	from_yd : y, d -> Date where [y.to_i64 : y -> I64, d.to_u16 : d -> U16]
 	from_yd = |year, day_of_year| {
 		md = 
@@ -132,16 +173,19 @@ Date :: {
 		{ year: year.to_i64(), month: md.month.to_u8(), day_of_month: md.days_remaining.to_u8(), day_of_year: day_of_year.to_u16() }
 	}
 
+	## Create a `Date` object from the given year, month, and day of the month.
 	from_ymd : y, n, d -> Date where [y.to_i64 : y -> I64, m.to_u8 : m -> U8, d.to_u8 : d -> U8]
 	from_ymd = |year, month, day| {
 		{ year: year.to_i64(), month: month.to_u8(), day_of_month: day.to_u8(), day_of_year: ymd_to_days_in_year(year, month, day) }
 	}
 
+	## Create a `Date` object from the given year and week.
 	from_yw : y, w -> Date where [y.to_i64 : y -> I64, w.to_u8 : w -> U8]
 	from_yw = |year, week| {
 		from_ywd(year, week, 1)
 	}
 
+	## Create a `Date` object from the given year, week, and day of the week.
 	from_ywd : y, w, d -> Date where [y.to_i64 : y -> I64, w.to_u8 : w -> U8, d.to_u64 : d -> U64]
 	from_ywd = |year, week, day| {
 		days_in_year = if is_leap_year(year.to_i64()) {
@@ -157,9 +201,11 @@ Date :: {
 		}
 	}
 
+	## Check whether the given date falls in a leap year
 	is_leap : Date -> Bool
 	is_leap = |date| is_leap_year(date.year)
 
+	## Subtract two `Date` objects to get the `Duration` between them.
 	sub : Date, Date -> Duration
 	sub = |a, b| {
 		a_nanos = to_nanos_since_epoch(a)
@@ -167,6 +213,7 @@ Date :: {
 		Duration.from_nanoseconds(a_nanos - b_nanos)
 	}
 
+	## Convert the given `Date` to an ISO 8601 string.
 	to_iso_str : Date -> Str
 	to_iso_str = |date| {
 		expand_int_with_zeros(date.year, 4)
@@ -176,18 +223,22 @@ Date :: {
 			.concat(expand_int_with_zeros(date.day_of_month, 2))
 	}
 
+	## Convert the `Date` to an ISO 8601 string as a list of UTF-8 bytes.
 	to_iso_u8 : Date -> List(U8)
 	to_iso_u8 = |date| to_iso_str(date).to_utf8()
 
+	## Convert the given `Date` to nanoseconds since the epoch.
 	to_nanos_since_epoch : Date -> I128
 	to_nanos_since_epoch = |date| {
 		days = num_days_since_epoch(date)
 		days.to_i128() * Const.nanos_per_day.to_i128()
 	}
 
+	## `Date` object representing the Unix epoch (1970-01-01).
 	unix_epoch : Date
 	unix_epoch = { year: 1970, month: 1, day_of_month: 1, day_of_year: 1 }
 
+	## Get the day of the week for a `Date` object (0 = Sunday, 6 = Saturday).
 	weekday : Date -> U8
 	weekday = |date| weekday_help(date.year, date.month, date.day_of_month)
 }
@@ -215,6 +266,7 @@ add_days_helper = |date, days| {
 	}
 }
 
+## Check whether the given year is a leap year.
 is_leap_year = |year| {
 	(year % Const.leap_interval.to_i64() == 0 and year % Const.leap_exception.to_i64() != 0) or year % Const.leap_non_exception.to_i64() == 0
 }
@@ -246,6 +298,7 @@ from_nanos_helper = |days, year| {
 	}
 }
 
+## Walk through the months of a year to find the month and day of the month
 walk_until_month_func : { days_remaining : U16, month : U8 }, U64 -> [Break, { days_remaining : U16, month : U8 }, Continue, { days_remaining : U16, month : U8 }]
 walk_until_month_func = |state, curr_month_days| {
 	if state.days_remaining <= curr_month_days.to_u16() {
@@ -255,6 +308,7 @@ walk_until_month_func = |state, curr_month_days| {
 	}
 }
 
+## Calculate the number of days since the epoch.
 num_days_since_epoch : Date -> I64
 num_days_since_epoch = |date| {
 	num_leap_years = num_leap_years_since_epoch(date.year, ExcludeCurrent)
@@ -278,10 +332,12 @@ num_days_since_epoch = |date| {
 	}
 }
 
+## Calculate the number of days since the epoch until the given year.
 num_days_since_epoch_until_year = |year| {
 	num_days_since_epoch({ year, month: 1, day_of_month: 1, day_of_year: 1 })
 }
 
+## Calculate the number of leap years since the epoch.
 num_leap_years_since_epoch : I64, [IncludeCurrent, ExcludeCurrent] -> I64
 num_leap_years_since_epoch = |year, inclusive| {
 	leap_incr = if is_leap_year(year) and inclusive == IncludeCurrent {
@@ -457,19 +513,22 @@ parse_calendar_date_extended = |bytes| {
 	}
 }
 
+## Returns the number of days in the given month of the given year.
 days_in_month : I64, U8 -> U8
 days_in_month = |year, month| {
 	Const.month_days({ month, is_leap: is_leap_year(year) }).to_u8()
 }
 
+## Return the day of the week, from 0=Sunday to 6=Saturday
 weekday_help : I64, U8, U8 -> U8
 weekday_help = |year, month, day| {
-	year2xxx = (year % 400) + 2400
+	year2xxx = (year % 400) + 2400 # to handle years before the epoch
 	date = Date.from_ymd(year2xxx, month, day)
 	days_since_epoch = Date.to_nanos_since_epoch(date) // Const.nanos_per_day.to_i128()
 	((days_since_epoch + 4) % 7).to_u8()
 }
 
+## Convert the given year, month, and day of the month to the day of the year.
 ymd_to_days_in_year : y, m, d -> U16 where [y.to_i64 : y -> I64, m.to_u64 : m -> U64, d.to_u64 : d -> U64]
 ymd_to_days_in_year = |year, month, day| {
 	(0..<month.to_u64())
@@ -621,7 +680,7 @@ expect Date.from_ywd(1970, 1, 1) == { year: 1970, month: 1, day_of_month: 1, day
 expect Date.from_ywd(1970, 52, 5) == { year: 1971, month: 1, day_of_month: 1, day_of_year: 1 }
 
 # <---- num_days_since_epoch ---->
-expect num_days_since_epoch(Date.from_ymd(2024, 1, 1)) == 19723
+expect num_days_since_epoch(Date.from_ymd(2024, 1, 1)) == 19723 # Removed due to compiler bug with optional record fields
 expect num_days_since_epoch(Date.from_ymd(1970, 12, 31)) == 365 - 1
 expect num_days_since_epoch(Date.from_ymd(1971, 1, 2)) == 365 + 1
 expect num_days_since_epoch(Date.from_ymd(2024, 1, 1)) == 19723
