@@ -30,12 +30,12 @@ main! = |_| {
 
 	response = Send.send!(request)?
 	if response.status >= 200 and response.status <= 299 {
-		iso_str = get_iso_str(response.body).map_err(|_| Exit(1))?
-		dt_now = DT.from_iso_str(iso_str).map_err(|_| Exit(2))?
+		iso_str = get_iso_str(response.body) ? |_| Exit(1)
+		dt_now = DT.from_iso_str(iso_str) ? |_| Exit(2)
 
 		date_str = dt_now.format("{YYYY}-{MM}-{DD}")
 		time_str = dt_now.format("{hh}:{mm}:{ss}")
-		"The current Zulu date is: ${date_str}"->Stdout.line!()?
+		"The current Zulu date is: ${date_str}"->Stdout.line!()
 		"The current Zulu time is: ${time_str}"->Stdout.line!()
 		Ok({})
 	} else {
