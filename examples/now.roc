@@ -4,9 +4,15 @@ app [main!] {
 }
 
 import pf.Stdout
-import pf.Utc
+#import pf.Utc
 import dt.DateTime
 import dt.Now
+
+# Temporary workaround until the platform provides pf.Utc
+Utc :: {}.{
+	now! = |_| 1785360137473432000.U64
+	to_nanos_since_epoch = |n| n
+}
 
 main! = |_args| {
 	now = Now.create({
@@ -16,4 +22,5 @@ main! = |_args| {
 	now.date_time!()
 		.format("{MM}/{DD}/{YY} | {hh}:{mm}:{ss}")
 		->Stdout.line!()
+	Ok({})
 }

@@ -3,12 +3,24 @@ app [main!] {
 	dt: "../package/main.roc",
 }
 
-import pf.Sleep
+#import pf.Sleep
 import pf.Stdout
-import pf.Utc
+#import pf.Utc
 import dt.Duration
 import dt.Time
 import dt.Now
+
+# Temporary workarounds until the platform provides pf.Utc
+Utc :: {}.{
+	now! = |_| 1785360137473432000.U64
+	to_nanos_since_epoch = |n| n
+}
+
+# Temporary workaround until the platform provides pf.Sleep
+Sleep :: {}.{
+	millis! = |_| {}
+}
+
 
 main! = |_args| {
 	now = Now.create({
@@ -21,4 +33,5 @@ main! = |_args| {
 	duration = Time.sub(end, start)
 	Duration.format(duration, "Slept for {s}.{f} seconds")
 		->Stdout.line!()
+	Ok({})
 }
