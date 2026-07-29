@@ -17,6 +17,21 @@ import Utils
 Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
 	## Are two Times equal?
 	is_eq : _
+	## Get the hour of the `Time` object.
+	get_hour : Time -> I8
+	get_hour = |time| time.hour
+
+	## Get the minute of the `Time` object.
+	get_minute : Time -> U8
+	get_minute = |time| time.minute
+
+	## Get the second of the `Time` object.
+	get_second : Time -> U8
+	get_second = |time| time.second
+
+	## Get the nanosecond of the `Time` object.
+	get_nanosecond : Time -> U32
+	get_nanosecond = |time| time.nanosecond
 
 
 	## Same as [`add_duration`](Time#add_duration)

@@ -132,7 +132,7 @@ DateTime :: { date : Date, time : Time }.{
 				# TODO: currently cannot support timezone offsets which exceed or precede the current day
 				match (Date.from_iso_u8(date_bytes), Time.from_iso_u8(time_bytes)) {
 					(Ok(date), Ok(time)) => {
-						{ date, time }->normalize()->Ok()
+						normalize({ date, time })->Ok()
 					}
 					_ => Err(InvalidDateTimeFormat)
 				}

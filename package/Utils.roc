@@ -111,7 +111,7 @@ Utils :: {}.{
 						0
 					}
 					{ before, others } = remaining_items.split_at(split_index)
-					help(output.append(before), others, other_indices, current_index + index)
+					help(output.append(before), others, other_indices, index)
 				}
 			}
 		}

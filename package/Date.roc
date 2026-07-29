@@ -20,7 +20,8 @@ Date :: {
 	day_of_year : U16,
 }.{
 	## Are two Dates equal?
-	is_eq : _
+	is_eq : Date, Date -> Bool
+	is_eq = |a, b| a.year == b.year and a.day_of_year == b.day_of_year
 
 	## Same as [`add_duration`](Date#add_duration).
 	add : Date, Duration -> Date
@@ -223,6 +224,9 @@ Date :: {
 		d = calendar_week_to_days_in_year(week, year) + day.to_i64()
 		if d > days_in_year {
 			from_yd(year + 1, (d - days_in_year).to_u16_try() ?? { crash "Unreachable" })
+		} else if d <= 0 {
+			days_in_prev_year = if is_leap_year(year - 1) { 366 } else { 365 }
+			from_yd(year - 1, (d + days_in_prev_year).to_u16_try() ?? { crash "Unreachable" })
 		} else {
 			from_yd(year, d.to_u16_try() ?? { crash "Unreachable" })
 		}
