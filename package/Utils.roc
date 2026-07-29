@@ -95,8 +95,9 @@ Utils :: {}.{
 		}
 	}
 
+	expand_int_with_zeros : I64, U64 -> Str
 	expand_int_with_zeros = |num, target_length| {
-		num.to_str().pad_left_ascii('0', target_length)
+		num.to_str()->pad_left_ascii('0', target_length)
 	}
 
 	split_at_indices = |list, indices| {
@@ -252,3 +253,118 @@ replace_first = |str, from, to| {
 		}
 	}
 }
+
+# nanos_to_frac_str
+expect Utils.nanos_to_frac_str(123000000) == ",123"
+expect Utils.nanos_to_frac_str(0) == ""
+expect Utils.nanos_to_frac_str(500_000_000) == ",5"
+expect Utils.nanos_to_frac_str(999_999_999) == ",999999999"
+
+# replace_fx_format
+expect Utils.replace_fx_format("{f:3}", 123456789) == "123"
+expect Utils.replace_fx_format("no format", 123) == "no format"
+expect Utils.replace_fx_format("{f}", 500_000_000) == ",5"
+
+# validate_utf8_single_bytes
+expect Utils.validate_utf8_single_bytes(['a', 'b', 'c']) == Bool.True
+expect Utils.validate_utf8_single_bytes([]) == Bool.True
+expect Utils.validate_utf8_single_bytes([128]) == Bool.False
+
+# utf8_to_int
+expect Utils.utf8_to_int(['1', '2', '3']) == Ok(123)
+expect Utils.utf8_to_int([]) == Ok(0)
+expect Utils.utf8_to_int(['0']) == Ok(0)
+expect Utils.utf8_to_int(['1', 'a']) == Err(InvalidBytes)
+
+# utf8_to_int_signed
+expect Utils.utf8_to_int_signed(['-', '1', '2', '3']) == Ok(-123)
+expect Utils.utf8_to_int_signed(['+', '1', '2', '3']) == Ok(123)
+expect Utils.utf8_to_int_signed(['1', '2', '3']) == Ok(123)
+expect Utils.utf8_to_int_signed(['-', 'x']) == Err(InvalidBytes)
+
+# utf8_to_frac
+expect Utils.utf8_to_frac(['0', '.', '5']) == Ok(0.5)
+expect Utils.utf8_to_frac(['0', ',', '5']) == Ok(0.5)
+expect Utils.utf8_to_frac(['1', '2']) == Ok(12.0)
+expect Utils.utf8_to_frac(['x']) == Err(InvalidBytes)
+
+# expand_int_with_zeros
+expect Utils.expand_int_with_zeros(123, 5) == "00123"
+expect Utils.expand_int_with_zeros(12345, 5) == "12345"
+expect Utils.expand_int_with_zeros(0, 3) == "000"
+
+# split_at_indices
+expect Utils.split_at_indices(['a', 'b', 'c', 'd'], [1, 3]) == [['a'], ['b', 'c'], ['d']]
+expect Utils.split_at_indices(['a', 'b', 'c'], []) == [['a', 'b', 'c']]
+expect Utils.split_at_indices(['a', 'b', 'c', 'd'], [3, 1]) == [['a'], ['b', 'c'], ['d']]
+
+# split_with_delims
+expect Utils.split_with_delims(['a', ',', 'b'], |b| b == ',') == [['a'], [','], ['b']]
+expect Utils.split_with_delims(['a', 'b'], |b| b == ',') == [['a', 'b']]
+expect Utils.split_with_delims([',', 'a'], |b| b == ',') == [[','], ['a']]
+expect Utils.split_with_delims(['a', ','], |b| b == ',') == [['a'], [',']]
+
+# split_with_delims_help
+expect split_with_delims_help(['a', ',', 'b'], |b| b == ',', [], []) == [['a'], [','], ['b']]
+expect split_with_delims_help([], |b| b == ',', [], []) == []
+expect split_with_delims_help([], |b| b == ',', [], ['a']) == [['a']]
+
+# pad_left_ascii
+expect pad_left_ascii("123", '0', 5) == "00123"
+expect pad_left_ascii("12345", '0', 3) == "12345"
+expect pad_left_ascii("", '0', 3) == "000"
+
+# trim_to_last_sig_fig
+expect trim_to_last_sig_fig(12300) == "123"
+expect trim_to_last_sig_fig(0) == ""
+expect trim_to_last_sig_fig(-12300) == "-123"
+expect trim_to_last_sig_fig(123) == "123"
+
+# drop_trailing_zeros
+expect drop_trailing_zeros("12300") == "123"
+expect drop_trailing_zeros("123") == "123"
+expect drop_trailing_zeros("000") == ""
+
+# drop_trailing_zeros_help
+expect drop_trailing_zeros_help(['1', '2', '0', '0']) == ['1', '2']
+expect drop_trailing_zeros_help(['1', '2']) == ['1', '2']
+expect drop_trailing_zeros_help([]) == []
+
+# count_frac_width
+expect count_frac_width(123000000) == 3
+expect count_frac_width(0) == 9
+expect count_frac_width(123456789) == 9
+
+# count_frac_width_help
+expect count_frac_width_help(100, 0) == 2
+expect count_frac_width_help(0, 0) == 0
+expect count_frac_width_help(123, 0) == 0
+
+# get_frac_format
+expect get_frac_format("abc{f:3}def") == "{f:3}"
+expect get_frac_format("no format") == ""
+expect get_frac_format("abc{f}def") == "{f}"
+
+# parse_frac_fmt
+expect parse_frac_fmt("{f:3}") == 3
+expect parse_frac_fmt("{f:9}") == 9
+expect parse_frac_fmt("{f}") == 9
+
+# move_decimal_point
+expect move_decimal_point(500.0, 2) == 5.0
+expect move_decimal_point(500.0, 0) == 500.0
+expect move_decimal_point(5.0, 1) == 0.5
+
+# pow_int
+expect pow_int(10, 3) == 1000
+expect pow_int(10, 0) == 1
+expect pow_int(2, 4) == 16
+
+# pow_int_help
+expect pow_int_help(10, 3, 1) == 1000
+expect pow_int_help(10, 0, 1) == 1
+
+# replace_first
+expect replace_first("hello world", "world", "roc") == "hello roc"
+expect replace_first("hello world", "foo", "bar") == "hello world"
+expect replace_first("", "foo", "bar") == ""
