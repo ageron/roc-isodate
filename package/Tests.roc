@@ -421,61 +421,18 @@ expect ['+', '1']->Utils.utf8_to_int_signed() == Ok(1)
 expect ['1', '9']->Utils.utf8_to_int_signed() == Ok(19)
 
 # <---- utf8ToFrac ---->
-expect {
-	match Utils.utf8_to_frac(['1', '2', '.', '3', '4', '5']) {
-		Ok(n) => n > 12.34499 and n < 12.34501
-		_ => Bool.False
-	}
-}
-expect {
-	match Utils.utf8_to_frac(['1', '2', ',', '3', '4', '5']) {
-		Ok(n) => n > 12.34499 and n < 12.34501
-		_ => Bool.False
-	}
-}
-expect {
-	match Utils.utf8_to_frac(['.', '1', '2', '3']) {
-		Ok(n) => n > 0.12299 and n < 0.12301
-		_ => Bool.False
-	}
-}
-expect {
-	match Utils.utf8_to_frac([',', '1', '2', '3']) {
-		Ok(n) => n > 0.12299 and n < 0.12301
-		_ => Bool.False
-	}
-}
-expect {
-	match Utils.utf8_to_frac(['1', '2', '3']) {
-		Ok(n) => n > 122.99 and n < 123.01
-		_ => Bool.False
-	}
-}
-expect {
-	match Utils.utf8_to_frac(['1', '2', '3', '.']) {
-		Ok(n) => n > 122.99 and n < 123.01
-		_ => Bool.False
-	}
-}
-expect {
-	num = Utils.utf8_to_frac(['1', '2', 'Z'])
-	match num {
-		Err(InvalidBytes) => Bool.True
-		_ => Bool.False
-	}
-}
-expect {
-	num = Utils.utf8_to_frac(['T', '2', '3'])
-	match num {
-		Err(InvalidBytes) => Bool.True
-		_ => Bool.False
-	}
-}
+expect is_approx_eq(Utils.utf8_to_frac(['1', '2', '.', '3', '4', '5'])?, 12.345, { atol: 0.0001 })
+expect is_approx_eq(Utils.utf8_to_frac(['1', '2', ',', '3', '4', '5'])?, 12.345, { atol: 0.0001 })
+expect is_approx_eq(Utils.utf8_to_frac(['.', '1', '2', '3'])?, 0.123, { atol: 0.0001 })
+expect is_approx_eq(Utils.utf8_to_frac([',', '1', '2', '3'])?, 0.123, { atol: 0.0001 })
+expect is_approx_eq(Utils.utf8_to_frac(['1', '2', '3'])?, 123.0, { atol: 0.0001 })
+expect is_approx_eq(Utils.utf8_to_frac(['1', '2', '3', '.'])?, 123.0, { atol: 0.0001 })
+expect Utils.utf8_to_frac(['1', '2', 'Z']) == Err(InvalidBytes)
+expect Utils.utf8_to_frac(['T', '2', '3']) == Err(InvalidBytes)
 
 # The following function should soon be available in Roc's builtins
-is_approx_eq : Dec, Dec, { atol : Dec } -> Bool
+is_approx_eq : _, _, { atol : _ } -> Bool
 is_approx_eq = |x, y, { atol }| {
-	to_int : Dec -> Try(I64, [OutOfRange])
 	to_int = |f| {
 		(f / atol + 0.5).to_i64_try()
 	}
