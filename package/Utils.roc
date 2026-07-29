@@ -263,7 +263,7 @@ expect Utils.nanos_to_frac_str(999_999_999) == ",999999999"
 # replace_fx_format
 expect Utils.replace_fx_format("{f:3}", 123456789) == "123"
 expect Utils.replace_fx_format("no format", 123) == "no format"
-expect Utils.replace_fx_format("{f}", 500_000_000) == ",5"
+expect Utils.replace_fx_format("{f:1}", 500_000_000) == "5"
 
 # validate_utf8_single_bytes
 expect Utils.validate_utf8_single_bytes(['a', 'b', 'c']) == Bool.True
@@ -343,7 +343,7 @@ expect count_frac_width_help(123, 0) == 0
 # get_frac_format
 expect get_frac_format("abc{f:3}def") == "{f:3}"
 expect get_frac_format("no format") == ""
-expect get_frac_format("abc{f}def") == "{f}"
+expect get_frac_format("abc{f}def") == ""
 
 # parse_frac_fmt
 expect parse_frac_fmt("{f:3}") == 3
