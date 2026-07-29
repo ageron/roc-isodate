@@ -3,17 +3,15 @@
 ## These functions include functions for creating `DateTime` objects from various numeric values, converting `DateTime`s to and from ISO 8601 strings, and performing arithmetic operations on `DateTime`s.
 import Const
 import Date
-import Date exposing [Date]
 import Duration
-import Duration exposing [Duration]
 import Time
-import Time exposing [Time]
-import Utils exposing [split_with_delims]
+import Utils
 
 ## ```
 ## DateTime :: { date : Date, time: Time }
 ## ```
 DateTime :: { date : Date, time : Time }.{
+	is_eq : _
 	Interval : { start : DateTime, end : DateTime }
 
 	## Same as [`add_duration`](DateTime#add_duration)
@@ -21,7 +19,7 @@ DateTime :: { date : Date, time : Time }.{
 	add = add_duration
 
 	## Add days to a `DateTime` object.
-	add_days : DateTime, d -> DateTime where [d.to_i16 : d -> I16]
+	add_days : DateTime, I64 -> DateTime
 	add_days = |date_time, days| { date: Date.add_days(date_time.date, days), time: date_time.time }
 
 	## Add a `Duration` object to a `DateTime` object. (May be deprecated in favor of [`add`](DateTime#add) in the future.)
@@ -34,22 +32,22 @@ DateTime :: { date : Date, time : Time }.{
 	}
 
 	## Add minutes to a `DateTime` object.
-	add_minutes : DateTime, m -> DateTime where [m.to_i64 : m -> I64]
-	add_minutes = |date_time, minutes| add_nanoseconds(date_time, minutes.to_i64() * Const.nanos_per_minute)
+	add_minutes : DateTime, I64 -> DateTime
+	add_minutes = |date_time, minutes| add_nanoseconds(date_time, minutes * Const.nanos_per_minute)
 
 	## Add months to a `DateTime` object.
-	add_months : DateTime, m -> DateTime where [m.to_u64 : m -> U64]
+	add_months : DateTime, I64 -> DateTime
 	add_months = |date_time, months| { date: Date.add_months(date_time.date, months), time: date_time.time }
 
 	## Add hours to a `DateTime` object.
-	add_hours : DateTime, h -> DateTime where [h.to_i64 : h -> I64]
-	add_hours = |date_time, hours| add_nanoseconds(date_time, hours.to_i64() * Const.nanos_per_hour)
+	add_hours : DateTime, I64 -> DateTime
+	add_hours = |date_time, hours| add_nanoseconds(date_time, hours * Const.nanos_per_hour)
 
 	## Add nanoseconds to a `DateTime` object.
-	add_nanoseconds : DateTime, n -> DateTime where [n.to_i64 : n -> I64]
+	add_nanoseconds : DateTime, I64 -> DateTime
 	add_nanoseconds = |date_time, nanos| {
 		# new_time = Time.add_nanoseconds(date_time.time, nanos)
-		time_nanos = Time.to_nanos_since_midnight(date_time.time) + nanos.to_i64()
+		time_nanos = Time.to_nanos_since_midnight(date_time.time) + nanos
 		days = 
 			if time_nanos >= 0 {
 				time_nanos // Const.nanos_per_day.to_i64()
@@ -59,18 +57,18 @@ DateTime :: { date : Date, time : Time }.{
 						-1
 					} else {
 						0
-					},
+					}
 				)
 			}
 		{ date: Date.add_days(date_time.date, days), time: Time.from_nanos_since_midnight(time_nanos)->Time.normalize() }
 	}
 
 	## Add seconds to a `DateTime` object.
-	add_seconds : DateTime, s -> DateTime where [s.to_i64 : s -> I64]
-	add_seconds = |date_time, seconds| add_nanoseconds(date_time, seconds.to_i64() * Const.nanos_per_second)
+	add_seconds : DateTime, I64 -> DateTime
+	add_seconds = |date_time, seconds| add_nanoseconds(date_time, seconds * Const.nanos_per_second)
 
 	## Add years to a `DateTime` object.
-	add_years : DateTime, y -> DateTime where [y.to_i64 : y -> I64]
+	add_years : DateTime, I64 -> DateTime
 	add_years = |date_time, years| { date: Date.add_years(date_time.date, years), time: date_time.time }
 
 	## Determine if the first `DateTime` occurs after the second `DateTime`.
@@ -129,7 +127,7 @@ DateTime :: { date : Date, time : Time }.{
 	## Convert an ISO 8601 list of UTF-8 bytes to a `DateTime` object.
 	from_iso_u8 : List(U8) -> Try(DateTime, [InvalidDateTimeFormat])
 	from_iso_u8 = |bytes| {
-		match split_with_delims(bytes, |b| b == 'T') {
+		match Utils.split_with_delims(bytes, |b| b == 'T') {
 			[date_bytes, ['T'], time_bytes] => {
 				# TODO: currently cannot support timezone offsets which exceed or precede the current day
 				match (Date.from_iso_u8(date_bytes), Time.from_iso_u8(time_bytes)) {
@@ -152,47 +150,46 @@ DateTime :: { date : Date, time : Time }.{
 	}
 
 	## Convert the number of nanoseconds since the Unix epoch to a `DateTime` object.
-	from_nanos_since_epoch : n -> DateTime where [n.to_i64 : n -> I64]
+	from_nanos_since_epoch : I128 -> DateTime
 	from_nanos_since_epoch = |nanos| {
-		nanos_i64 = nanos.to_i64()
 		time_nanos = 
-			if nanos_i64 < 0 and nanos.to_i128() % Const.nanos_per_day.to_i128() != 0 {
-				nanos_i64 % Const.nanos_per_day.to_i64() + Const.nanos_per_day.to_i64()
+			if nanos < 0 and nanos % Const.nanos_per_day.to_i128() != 0 {
+				nanos % Const.nanos_per_day.to_i128() + Const.nanos_per_day.to_i128()
 			} else {
-				nanos_i64 % Const.nanos_per_day.to_i64()
+				nanos % Const.nanos_per_day.to_i128()
 			}
-		date_nanos = nanos_i64 - time_nanos
+		date_nanos = nanos - time_nanos
 		date = Date.from_nanos_since_epoch(date_nanos)
-		time = Time.from_nanos_since_midnight(time_nanos)
+		time = Time.from_nanos_since_midnight(time_nanos.to_i64_wrap())
 		{ date, time }
 	}
 
 	## Create a `DateTime` object from the year and day of the year.
-	from_yd : y, d -> DateTime where [y.to_i64 : y -> I64, d.to_i64 : d -> I64]
-	from_yd = |year, day| { date: Date.from_yd(year, day), time: Time.midnight }
+	from_yd : I64, I64 -> DateTime
+	from_yd = |year, day| { date: Date.from_yd(year, day.to_u16_wrap()), time: Time.midnight }
 
 	## Create a `DateTime` object from the year, month, and day.
-	from_ymd : y, m, d -> DateTime where [y.to_i64 : y -> I64, m.to_i64 : m -> I64, d.to_i64 : d -> I64]
-	from_ymd = |year, month, day| { date: Date.from_ymd(year, month, day), time: Time.midnight }
+	from_ymd : I64, I64, I64 -> DateTime
+	from_ymd = |year, month, day| { date: Date.from_ymd(year, month.to_u8_wrap(), day.to_u8_wrap()), time: Time.midnight }
 
 	## Create a `DateTime` object from the year and week.
-	from_yw : y, w -> DateTime where [y.to_i64 : y -> I64, w.to_i64 : w -> I64]
-	from_yw = |year, week| { date: Date.from_yw(year, week), time: Time.midnight }
+	from_yw : I64, I64 -> DateTime
+	from_yw = |year, week| { date: Date.from_yw(year, week.to_u8_wrap()), time: Time.midnight }
 
 	## Create a `DateTime` object from the year, week, and day of the week.
-	from_ywd : y, w, d -> DateTime where [y.to_i64 : y -> I64, w.to_i64 : w -> I64, d.to_i64 : d -> I64]
-	from_ywd = |year, week, day| { date: Date.from_ywd(year, week, day), time: Time.midnight }
+	from_ywd : I64, I64, I64 -> DateTime
+	from_ywd = |year, week, day| { date: Date.from_ywd(year, week.to_u8_wrap(), day.to_u8_wrap()), time: Time.midnight }
 
 	## Create a `DateTime` object from the year, month, day, hour, minute, and second.
-	from_ymdhms : y, m, d, h, mi, s -> DateTime where [y.to_i64 : y -> I64, m.to_i64 : m -> I64, d.to_i64 : d -> I64, h.to_i64 : h -> I64, mi.to_i64 : mi -> I64, s.to_i64 : s -> I64]
+	from_ymdhms : I64, I64, I64, I64, I64, I64 -> DateTime
 	from_ymdhms = |year, month, day, hour, minute, second| {
-		{ date: Date.from_ymd(year, month, day), time: Time.from_hms(hour, minute, second) }
+		{ date: Date.from_ymd(year, month.to_u8_wrap(), day.to_u8_wrap()), time: Time.from_hms(hour, minute, second) }
 	}
 
 	## Create a `DateTime` object from the year, month, day, hour, minute, second, and nanosecond.
-	from_ymdhmsn : y, m, d, h, mi, s, n -> DateTime where [y.to_i64 : y -> I64, m.to_i64 : m -> I64, d.to_i64 : d -> I64, h.to_i64 : h -> I64, mi.to_i64 : mi -> I64, s.to_i64 : s -> I64, n.to_i64 : n -> I64]
+	from_ymdhmsn : I64, I64, I64, I64, I64, I64, I64 -> DateTime
 	from_ymdhmsn = |year, month, day, hour, minute, second, nanosecond| {
-		{ date: Date.from_ymd(year, month, day), time: Time.from_hmsn(hour, minute, second, nanosecond) }
+		{ date: Date.from_ymd(year, month.to_u8_wrap(), day.to_u8_wrap()), time: Time.from_hmsn(hour, minute, second, nanosecond) }
 	}
 
 	## Subtract two `DateTime` objects to get the `Duration` between them.
@@ -230,18 +227,18 @@ DateTime :: { date : Date, time : Time }.{
 	## Get the day of the week for a `DateTime` object (0 = Sunday, 6 = Saturday).
 	weekday : DateTime -> U8
 	weekday = |dt| Date.weekday(dt.date)
-}
 
-## Normalize a `DateTime` object.
-normalize : DateTime -> DateTime
-normalize = |date_time| {
-	DateTime.add_hours(
-		{
-			date: date_time.date,
-			time: Time.from_hmsn(0, date_time.time.minute, date_time.time.second, date_time.time.nanosecond),
-		},
-		date_time.time.hour.to_i64(),
-	)
+	## Normalize a `DateTime` object.
+	normalize : DateTime -> DateTime
+	normalize = |date_time| {
+		DateTime.add_hours(
+			{
+				date: date_time.date,
+				time: Time.from_hmsn(0, Time.get_minute(date_time.time).to_i64(), Time.get_second(date_time.time).to_i64(), Time.get_nanosecond(date_time.time).to_i64()),
+			},
+			Time.get_hour(date_time.time).to_i64(),
+		)
+	}
 }
 
 # <==== TESTS ====>
@@ -254,57 +251,57 @@ expect DateTime.from_ymdhmsn(1970, 1, 1, 0, 0, 0, 0).add_nanoseconds(-Const.nano
 expect DateTime.from_ymdhmsn(1970, 1, 1, 0, 0, 0, 0).add_nanoseconds(((-Const.nanos_per_day) - 1)) == DateTime.from_ymdhmsn(1969, 12, 30, 23, 59, 59, (Const.nanos_per_second - 1))
 
 # <---- add_duration ---->
-expect DateTime.add_duration(DateTime.unix_epoch, Duration.from_nanoseconds(-1)) == DateTime.from_ymdhmsn(1969, 12, 31, 23, 59, 59, (Const.nanos_per_second - 1))
-expect DateTime.add_duration(DateTime.unix_epoch, Duration.from_days(365)) == DateTime.from_ymdhmsn(1971, 1, 1, 0, 0, 0, 0)
+expect DateTime.add_duration(DateTime.unix_epoch, Duration.from_nanoseconds(-1.I128)) == DateTime.from_ymdhmsn(1969, 12, 31, 23, 59, 59, (Const.nanos_per_second - 1))
+expect DateTime.add_duration(DateTime.unix_epoch, Duration.from_days(365.I128)) == DateTime.from_ymdhmsn(1971, 1, 1, 0, 0, 0, 0)
 
 # <--- after --->
 expect {
-	a = DateTime.from_nanos_since_epoch(0)
-	b = DateTime.from_nanos_since_epoch(0)
+	a = DateTime.from_nanos_since_epoch(0.I128)
+	b = DateTime.from_nanos_since_epoch(0.I128)
 	!(a.after(b))
 }
 expect {
-	a = DateTime.from_nanos_since_epoch(0)
-	b = DateTime.from_nanos_since_epoch(1)
+	a = DateTime.from_nanos_since_epoch(0.I128)
+	b = DateTime.from_nanos_since_epoch(1.I128)
 	!(a.after(b))
 }
 expect {
-	a = DateTime.from_nanos_since_epoch(1)
-	b = DateTime.from_nanos_since_epoch(0)
+	a = DateTime.from_nanos_since_epoch(1.I128)
+	b = DateTime.from_nanos_since_epoch(0.I128)
 	a.after(b)
 }
 
 # <--- before --->
 expect {
-	a = DateTime.from_nanos_since_epoch(0)
-	b = DateTime.from_nanos_since_epoch(0)
+	a = DateTime.from_nanos_since_epoch(0.I128)
+	b = DateTime.from_nanos_since_epoch(0.I128)
 	!(a.before(b))
 }
 expect {
-	a = DateTime.from_nanos_since_epoch(0)
-	b = DateTime.from_nanos_since_epoch(1)
+	a = DateTime.from_nanos_since_epoch(0.I128)
+	b = DateTime.from_nanos_since_epoch(1.I128)
 	a.before(b)
 }
 expect {
-	a = DateTime.from_nanos_since_epoch(1)
-	b = DateTime.from_nanos_since_epoch(0)
+	a = DateTime.from_nanos_since_epoch(1.I128)
+	b = DateTime.from_nanos_since_epoch(0.I128)
 	!(a.before(b))
 }
 
 # <--- equal --->
 expect {
-	a = DateTime.from_nanos_since_epoch(0)
-	b = DateTime.from_nanos_since_epoch(0)
+	a = DateTime.from_nanos_since_epoch(0.I128)
+	b = DateTime.from_nanos_since_epoch(0.I128)
 	a.equal(b)
 }
 expect {
-	a = DateTime.from_nanos_since_epoch(0)
-	b = DateTime.from_nanos_since_epoch(1)
+	a = DateTime.from_nanos_since_epoch(0.I128)
+	b = DateTime.from_nanos_since_epoch(1.I128)
 	!(a.equal(b))
 }
 expect {
-	a = DateTime.from_nanos_since_epoch(1)
-	b = DateTime.from_nanos_since_epoch(0)
+	a = DateTime.from_nanos_since_epoch(1.I128)
+	b = DateTime.from_nanos_since_epoch(0.I128)
 	!(a.equal(b))
 }
 
@@ -315,8 +312,8 @@ expect {
 }
 
 # <--- from_nanos_since_epoch --->
-expect DateTime.from_nanos_since_epoch((364 * 24 * Const.nanos_per_hour + 12 * Const.nanos_per_hour + 34 * Const.nanos_per_minute + 56 * Const.nanos_per_second + 5)) == DateTime.from_ymdhmsn(1970, 12, 31, 12, 34, 56, 5)
-expect DateTime.from_nanos_since_epoch(-1) == DateTime.from_ymdhmsn(1969, 12, 31, 23, 59, 59, (Const.nanos_per_second - 1))
+expect DateTime.from_nanos_since_epoch((364 * 24 * Const.nanos_per_hour.to_i128() + 12 * Const.nanos_per_hour.to_i128() + 34 * Const.nanos_per_minute.to_i128() + 56 * Const.nanos_per_second.to_i128() + 5)) == DateTime.from_ymdhmsn(1970, 12, 31, 12, 34, 56, 5)
+expect DateTime.from_nanos_since_epoch(-1.I128) == DateTime.from_ymdhmsn(1969, 12, 31, 23, 59, 59, (Const.nanos_per_second - 1))
 
 # <--- normalize --->
 expect DateTime.normalize(DateTime.from_ymdhmsn(1970, 1, 2, -12, 1, 2, 3)) == DateTime.from_ymdhmsn(1970, 1, 1, 12, 1, 2, 3)
@@ -324,8 +321,8 @@ expect DateTime.normalize(DateTime.from_ymdhmsn(1970, 1, 1, 12, 1, 2, 3)) == Dat
 expect DateTime.normalize(DateTime.from_ymdhmsn(1970, 1, 1, 36, 1, 2, 3)) == DateTime.from_ymdhmsn(1970, 1, 2, 12, 1, 2, 3)
 
 # <--- sub --->
-expect DateTime.sub(DateTime.from_ymd(1970, 1, 1), DateTime.from_ymdhmsn(1970, 1, 1, 0, 0, 0, 1)) == Duration.from_nanoseconds(-1)
-expect DateTime.sub(DateTime.from_ymdhmsn(1970, 1, 1, 1, 1, 1, 1), DateTime.from_yd(1968, 1)) == Duration.from_nanoseconds(Const.nanos_per_day * 731 + Const.nanos_per_hour + Const.nanos_per_minute + Const.nanos_per_second + 1)
+expect DateTime.sub(DateTime.from_ymd(1970, 1, 1), DateTime.from_ymdhmsn(1970, 1, 1, 0, 0, 0, 1)) == Duration.from_nanoseconds(-1.I128)
+expect DateTime.sub(DateTime.from_ymdhmsn(1970, 1, 1, 1, 1, 1, 1), DateTime.from_yd(1968, 1)) == Duration.from_nanoseconds((Const.nanos_per_day.to_i128() * 731 + Const.nanos_per_hour.to_i128() + Const.nanos_per_minute.to_i128() + Const.nanos_per_second.to_i128() + 1))
 
 # <---- to_iso_str ---->
 expect DateTime.to_iso_str(DateTime.unix_epoch) == "1970-01-01T00:00:00"
@@ -335,4 +332,5 @@ expect DateTime.to_iso_str(DateTime.from_ymdhmsn(1970, 1, 1, 0, 0, 0, (Const.nan
 expect DateTime.to_iso_u8(DateTime.unix_epoch) == Str.to_utf8("1970-01-01T00:00:00")
 
 # <--- to_nanos_since_epoch --->
-expect DateTime.to_nanos_since_epoch(DateTime.from_ymdhmsn(1970, 12, 31, 12, 34, 56, 5)) == 364 * Const.nanos_per_day + 12 * Const.nanos_per_hour + 34 * Const.nanos_per_minute + 56 * Const.nanos_per_second + 5
+expect DateTime.to_nanos_since_epoch(DateTime.from_ymdhmsn(1970, 12, 31, 12, 34, 56, 5)) == 364 * Const.nanos_per_day.to_i128() + 12 * Const.nanos_per_hour.to_i128() + 34 * Const.nanos_per_minute.to_i128() + 56 * Const.nanos_per_second.to_i128() + 5
+
