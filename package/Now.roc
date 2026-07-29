@@ -60,52 +60,52 @@ Now(a) :: { now! : {} => a, now_to_nanos : a -> U64 }.{
 
 # <===== TESTS ====>
 expect {
-	fake_now = Now.create({
+	mock_now = Now.create({
 		now!: |_| 0.U64,
 		now_to_nanos: |x| x,
 	})
-	Now.date_time_from(0.U64, fake_now.now_to_nanos) == DateTime.unix_epoch
+	Now.date_time_from(0.U64, mock_now.now_to_nanos) == DateTime.unix_epoch
 }
 
 expect {
-	fake_now = Now.create({
+	mock_now = Now.create({
 		now!: |_| 0.U64,
 		now_to_nanos: |x| x,
 	})
-	Now.date_from(0.U64, fake_now.now_to_nanos) == Date.unix_epoch
+	Now.date_from(0.U64, mock_now.now_to_nanos) == Date.unix_epoch
 }
 
 expect {
-	fake_now = Now.create({
+	mock_now = Now.create({
 		now!: |_| 0.U64,
 		now_to_nanos: |x| x,
 	})
-	Now.time_from(0.U64, fake_now.now_to_nanos) == Time.midnight
+	Now.time_from(0.U64, mock_now.now_to_nanos) == Time.midnight
 }
 
 expect {
 	nanos = (Const.nanos_per_day + Const.nanos_per_hour + Const.nanos_per_minute + Const.nanos_per_second + 500_000_000).to_u64_wrap()
-	fake_now = Now.create({
+	mock_now = Now.create({
 		now!: |_| { ts: nanos },
 		now_to_nanos: |obj| obj.ts,
 	})
-	Now.date_time_from({ ts: nanos }, fake_now.now_to_nanos) == DateTime.from_ymdhmsn(1970, 1, 2, 1, 1, 1, 500_000_000)
+	Now.date_time_from({ ts: nanos }, mock_now.now_to_nanos) == DateTime.from_ymdhmsn(1970, 1, 2, 1, 1, 1, 500_000_000)
 }
 
 expect {
 	nanos = (Const.nanos_per_day + Const.nanos_per_hour + Const.nanos_per_minute + Const.nanos_per_second + 500_000_000).to_u64_wrap()
-	fake_now = Now.create({
+	mock_now = Now.create({
 		now!: |_| { ts: nanos },
 		now_to_nanos: |obj| obj.ts,
 	})
-	Now.date_from({ ts: nanos }, fake_now.now_to_nanos) == Date.from_ymd(1970, 1, 2)
+	Now.date_from({ ts: nanos }, mock_now.now_to_nanos) == Date.from_ymd(1970, 1, 2)
 }
 
 expect {
 	nanos = (Const.nanos_per_day + Const.nanos_per_hour + Const.nanos_per_minute + Const.nanos_per_second + 500_000_000).to_u64_wrap()
-	fake_now = Now.create({
+	mock_now = Now.create({
 		now!: |_| { ts: nanos },
 		now_to_nanos: |obj| obj.ts,
 	})
-	Now.time_from({ ts: nanos }, fake_now.now_to_nanos) == Time.from_hmsn(1, 1, 1, 500_000_000)
+	Now.time_from({ ts: nanos }, mock_now.now_to_nanos) == Time.from_hmsn(1, 1, 1, 500_000_000)
 }
