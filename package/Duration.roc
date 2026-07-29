@@ -413,3 +413,27 @@ expect {
 	duration = Duration.from_days(days_over)
 	duration.to_days() == I64.highest
 }
+
+expect {
+	days_under = I64.lowest.to_i128() - 1
+	duration = Duration.from_days(days_under)
+	duration.to_days() == I64.lowest
+}
+
+# <---- format & format_unsigned ---->
+expect {
+	d = Duration.from_hmsn(1, 2, 3, 456000000)
+	Duration.format(d, "{d}d {hh}:{mm}:{ss}.{f:3}") == "0d 01:02:03.456"
+}
+
+expect {
+	d = Duration.from_seconds(-90)
+	Duration.format_unsigned(d, "{m}:{ss}") == "1:30"
+}
+
+# <---- to_* conversions ---->
+expect {
+	d = Duration.from_hms(1, 30, 0)
+	d.to_hours() == 1 and d.to_minutes() == 90 and d.to_seconds() == 5400
+}
+
