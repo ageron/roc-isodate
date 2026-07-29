@@ -2,21 +2,8 @@
 ##
 ## These functions include functions for creating `Time` objects from various numeric values, converting `Time`s to and from ISO 8601 strings, and performing arithmetic operations on `Time`s.
 import Const
-import Const exposing [
-	nanos_per_hour,
-	nanos_per_minute,
-	nanos_per_second,
-]
 import Duration
-import Duration exposing [Duration]
-import Utils exposing [
-	expand_int_with_zeros,
-	utf8_to_frac,
-	utf8_to_int_signed,
-	validate_utf8_single_bytes,
-	split_at_indices,
-	split_with_delims,
-]
+import Utils
 
 ## Object representing a time of day. Hours may be less than 0 or greater than 24.
 ## ```
@@ -28,6 +15,9 @@ import Utils exposing [
 ## }
 ## ```
 Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
+	## Are two Times equal?
+	is_eq : _
+
 
 	## Same as [`add_duration`](Time#add_duration)
 	add : Time, Duration -> Time
@@ -38,25 +28,25 @@ Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
 	add_duration = |time, duration| {
 		duration_nanos = duration.to_nanoseconds()
 		time_nanos = to_nanos_since_midnight(time).to_i128()
-		from_nanos_since_midnight(duration_nanos + time_nanos)
+		from_nanos_since_midnight((duration_nanos + time_nanos).to_i64_wrap())
 	}
 
 	## Add hours to a `Time` object.
-	add_hours : Time, h -> Time where [h.to_i64 : h -> I64]
+	add_hours : Time, I64 -> Time
 	add_hours = |time, hours| add_nanoseconds(time, hours * Const.nanos_per_hour)
 
 	## Add minutes to a `Time` object.
-	add_minutes : Time, m -> Time where [m.to_i64 : m -> I64]
+	add_minutes : Time, I64 -> Time
 	add_minutes = |time, minutes| add_nanoseconds(time, minutes * Const.nanos_per_minute)
 
 	## Add nanoseconds to a `Time` object.
-	add_nanoseconds : Time, n -> Time where [n.to_i64 : n -> I64]
+	add_nanoseconds : Time, I64 -> Time
 	add_nanoseconds = |time, nanos| {
-		from_nanos_since_midnight(to_nanos_since_midnight(time) + nanos.to_i64())
+		from_nanos_since_midnight(to_nanos_since_midnight(time) + nanos)
 	}
 
 	## Add seconds to a `Time` object.
-	add_seconds : Time, s -> Time where [s.to_i64 : s -> I64]
+	add_seconds : Time, I64 -> Time
 	add_seconds = |time, seconds| add_nanoseconds(time, seconds * Const.nanos_per_second)
 
 	## Determine if the first `Time` occurs after the second `Time`.
@@ -110,24 +100,24 @@ Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
 	format = |time, fmt| {
 		(
 			fmt
-				.replace_first("{hh}", expand_int_with_zeros(time.hour, 2))
+				.replace_first("{hh}", Utils.expand_int_with_zeros(time.hour.to_i64(), 2))
 				.replace_first("{h}", time.hour.to_str())
-				.replace_first("{mm}", expand_int_with_zeros(time.minute, 2))
+				.replace_first("{mm}", Utils.expand_int_with_zeros(time.minute.to_i64(), 2))
 				.replace_first("{m}", time.minute.to_str())
-				.replace_first("{ss}", expand_int_with_zeros(time.second, 2))
+				.replace_first("{ss}", Utils.expand_int_with_zeros(time.second.to_i64(), 2))
 				.replace_first("{s}", time.second.to_str())
-				.replace_first("{f}", Utils.nanos_to_frac_str(time.nanosecond).drop_prefix(","))
-				->Utils.replace_fx_format(time.nanosecond),
+				.replace_first("{f}", Utils.nanos_to_frac_str(time.nanosecond.to_i32_wrap()).drop_prefix(","))
+				->Utils.replace_fx_format(time.nanosecond.to_i32_wrap()),
 		).replace_first("{n}", time.nanosecond.to_str())
 	}
 
 	## Create a `Time` object from the hour, minute, and second.
-	from_hms : h, m, s -> Time where [h.to_i64 : h -> I64, m.to_i64 : m -> I64, s.to_i64 : s -> I64]
-	from_hms = |hour, minute, second| { hour: hour.to_i8(), minute: minute.to_u8(), second: second.to_u8(), nanosecond: (0).u32 }
+	from_hms : I64, I64, I64 -> Time
+	from_hms = |hour, minute, second| { hour: hour.to_i8_wrap(), minute: minute.to_u8_wrap(), second: second.to_u8_wrap(), nanosecond: 0.U32 }
 
 	## Create a `Time` object from the hour, minute, second, and nanosecond.
-	from_hmsn : h, m, s, n -> Time where [h.to_i64 : h -> I64, m.to_i64 : m -> I64, s.to_i64 : s -> I64, n.to_i64 : n -> I64]
-	from_hmsn = |hour, minute, second, nanosecond| { hour: hour.to_i8(), minute: minute.to_u8(), second: second.to_u8(), nanosecond: nanosecond.to_u32() }
+	from_hmsn : I64, I64, I64, I64 -> Time
+	from_hmsn = |hour, minute, second, nanosecond| { hour: hour.to_i8_wrap(), minute: minute.to_u8_wrap(), second: second.to_u8_wrap(), nanosecond: nanosecond.to_u32_wrap() }
 
 	## Convert an ISO 8601 string to a `Time` object.
 	from_iso_str : Str -> Try(Time, [InvalidTimeFormat])
@@ -136,9 +126,9 @@ Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
 	## Convert an ISO 8601 list of UTF-8 bytes to a `Time` object.
 	from_iso_u8 : List(U8) -> Try(Time, [InvalidTimeFormat])
 	from_iso_u8 = |bytes| {
-		if validate_utf8_single_bytes(bytes) {
+		if Utils.validate_utf8_single_bytes(bytes) {
 			stripped_bytes = strip_t_and_z(bytes)
-			match (split_with_delims(stripped_bytes, |b| ['.', ',', '+', '-'].contains(b)), bytes.last()) {
+			match (Utils.split_with_delims(stripped_bytes, |b| ['.', ',', '+', '-'].contains(b)), bytes.last()) {
 				# time.fractionaltime+timeoffset / time,fractionaltime-timeoffset
 				([time_bytes, [byte1], fractional_bytes, [byte2], offset_bytes], Ok(last_byte)) if last_byte != 'Z' => {
 					time_res = parse_fractional_time(time_bytes, [[byte1], fractional_bytes]->join())
@@ -168,16 +158,16 @@ Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
 	}
 
 	## Convert nanoseconds since midnight to a `Time` object.
-	from_nanos_since_midnight : n -> Time where [n.to_i64 : n -> I64]
+	from_nanos_since_midnight : I64 -> Time
 	from_nanos_since_midnight = |nanos| {
-		nanos1 = ((nanos % Const.nanos_per_day + Const.nanos_per_day) % Const.nanos_per_day).to_u64()
-		nanos2 = nanos1 % nanos_per_hour
-		minute = (nanos2 // nanos_per_minute).to_u8()
-		nanos3 = nanos2 % nanos_per_minute
-		second = (nanos3 // nanos_per_second).to_u8()
-		nanosecond = (nanos3 % nanos_per_second).to_u32()
-		casted_val = (minute.to_i64() * nanos_per_minute + second.to_i64() * nanos_per_second + nanosecond.to_i64()).cast()
-		hour = ((nanos - casted_val) // nanos_per_hour).to_i8() # % Const.hoursPerDay |> Num.toI8
+		nanos1 = ((nanos % Const.nanos_per_day + Const.nanos_per_day) % Const.nanos_per_day).to_u64_wrap()
+		nanos2 = nanos1.to_i64_wrap() % Const.nanos_per_hour
+		minute = (nanos2 // Const.nanos_per_minute).to_u8_wrap()
+		nanos3 = nanos2 % Const.nanos_per_minute
+		second = (nanos3 // Const.nanos_per_second).to_u8_wrap()
+		nanosecond = (nanos3 % Const.nanos_per_second).to_u32_wrap()
+		casted_val = (minute.to_i64() * Const.nanos_per_minute + second.to_i64() * Const.nanos_per_second + nanosecond.to_i64())
+		hour = ((nanos - casted_val) // Const.nanos_per_hour).to_i8_wrap()
 		{ hour, minute, second, nanosecond }
 	}
 
@@ -188,8 +178,8 @@ Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
 	## Normalize a `Time` object to ensure that the hour is between 0 and 23.
 	normalize : Time -> Time
 	normalize = |time| {
-		h_normalized = ((time.hour.to_i64() % Const.hours_per_day.to_i64() + Const.hours_per_day.to_i64()) % Const.hours_per_day.to_i64()).to_i8()
-		from_hmsn(h_normalized, time.minute, time.second, time.nanosecond)
+		h_normalized = ((time.hour.to_i64() % Const.hours_per_day.to_i64() + Const.hours_per_day.to_i64()) % Const.hours_per_day.to_i64()).to_i8_wrap()
+		from_hmsn(h_normalized.to_i64(), time.minute.to_i64(), time.second.to_i64(), time.nanosecond.to_i64())
 	}
 
 	## Subtract two `Time` objects to get the `Duration` between them.
@@ -197,18 +187,18 @@ Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
 	sub = |a, b| {
 		a_nanos = to_nanos_since_midnight(a)
 		b_nanos = to_nanos_since_midnight(b)
-		Duration.from_nanoseconds(a_nanos - b_nanos)
+		Duration.from_nanoseconds((a_nanos - b_nanos).to_i128())
 	}
 
 	## Convert a `Time` object to an ISO 8601 string.
 	to_iso_str : Time -> Str
 	to_iso_str = |time| {
-		expand_int_with_zeros(time.hour, 2)
+		Utils.expand_int_with_zeros(time.hour.to_i64(), 2)
 			.concat(":")
-			.concat(expand_int_with_zeros(time.minute, 2))
+			.concat(Utils.expand_int_with_zeros(time.minute.to_i64(), 2))
 			.concat(":")
-			.concat(expand_int_with_zeros(time.second, 2))
-			.concat(Utils.nanos_to_frac_str(time.nanosecond))
+			.concat(Utils.expand_int_with_zeros(time.second.to_i64(), 2))
+			.concat(Utils.nanos_to_frac_str(time.nanosecond.to_i32_wrap()))
 	}
 
 	## Convert a `Time` object to an ISO 8601 list of UTF-8 bytes.
@@ -250,35 +240,35 @@ parse_whole_time = |bytes| {
 parse_fractional_time : List(U8), List(U8) -> Try(Time, [InvalidTimeFormat])
 parse_fractional_time = |whole_bytes, fractional_bytes| {
 	add_duration_and_time = |d, t| Time.add_duration(t, d)
-	match (whole_bytes, utf8_to_frac(fractional_bytes)) {
+	match (whole_bytes, Utils.utf8_to_frac(fractional_bytes)) {
 		([_, _], Ok(frac)) => { # hh
 			time = parse_local_time_hour(whole_bytes)?
 			ns = (frac * Const.nanos_per_hour.to_f64())->round()
-			Duration.from_nanoseconds(ns)->add_duration_and_time(time)->Ok
+			Duration.from_nanoseconds(ns.to_i128())->add_duration_and_time(time)->Ok
 		}
 
 		([_, _, _, _], Ok(frac)) => { # hhmm
 			time = parse_local_time_minute_basic(whole_bytes)?
 			ns = (frac * Const.nanos_per_minute.to_f64())->round()
-			Duration.from_nanoseconds(ns)->add_duration_and_time(time)->Ok
+			Duration.from_nanoseconds(ns.to_i128())->add_duration_and_time(time)->Ok
 		}
 
 		([_, _, ':', _, _], Ok(frac)) => { # hh:mm
 			time = parse_local_time_minute_extended(whole_bytes)?
 			ns = (frac * Const.nanos_per_minute.to_f64())->round()
-			Duration.from_nanoseconds(ns)->add_duration_and_time(time)->Ok
+			Duration.from_nanoseconds(ns.to_i128())->add_duration_and_time(time)->Ok
 		}
 
 		([_, _, _, _, _, _], Ok(frac)) => { # hhmmss
 			time = parse_local_time_basic(whole_bytes)?
 			ns = (frac * Const.nanos_per_second.to_f64())->round()
-			Duration.from_nanoseconds(ns)->add_duration_and_time(time)->Ok
+			Duration.from_nanoseconds(ns.to_i128())->add_duration_and_time(time)->Ok
 		}
 
 		([_, _, ':', _, _, ':', _, _], Ok(frac)) => { # hh:mm:ss
 			time = parse_local_time_extended(whole_bytes)?
 			ns = (frac * Const.nanos_per_second.to_f64())->round()
-			Duration.from_nanoseconds(ns)->add_duration_and_time(time)->Ok
+			Duration.from_nanoseconds(ns.to_i128())->add_duration_and_time(time)->Ok
 		}
 
 		_ => Err(InvalidTimeFormat)
@@ -325,11 +315,11 @@ parse_time_offset_help = |h1, h2, m1, m2, sign| {
 			Invalid
 		}
 	}
-	match (utf8_to_int_signed([h1, h2]), utf8_to_int_signed([m1, m2])) {
+	match (Utils.utf8_to_int_signed([h1, h2]), Utils.utf8_to_int_signed([m1, m2])) {
 		(Ok(hour), Ok(minute)) => {
 			offset_nanos = sign * (hour * Const.nanos_per_hour.to_i64() + minute * Const.nanos_per_minute.to_i64())
 			match is_valid_offset(offset_nanos) {
-				Valid => Duration.from_nanoseconds(offset_nanos)->Ok
+				Valid => Duration.from_nanoseconds(offset_nanos.to_i128())->Ok
 				Invalid => Err(InvalidTimeFormat)
 			}
 		}
@@ -340,7 +330,7 @@ parse_time_offset_help = |h1, h2, m1, m2, sign| {
 
 parse_local_time_hour : List(U8) -> Try(Time, [InvalidTimeFormat])
 parse_local_time_hour = |bytes| {
-	match utf8_to_int_signed(bytes) {
+	match Utils.utf8_to_int_signed(bytes) {
 		Ok(hour) if hour >= 0 and hour <= 24 => {
 			Time.from_hms(hour, 0, 0)->Ok
 		}
@@ -351,9 +341,9 @@ parse_local_time_hour = |bytes| {
 
 parse_local_time_minute_basic : List(U8) -> Try(Time, [InvalidTimeFormat])
 parse_local_time_minute_basic = |bytes| {
-	match split_at_indices(bytes, [2]) {
+	match Utils.split_at_indices(bytes, [2]) {
 		[hour_bytes, minute_bytes] => {
-			match (utf8_to_int_signed(hour_bytes), utf8_to_int_signed(minute_bytes)) {
+			match (Utils.utf8_to_int_signed(hour_bytes), Utils.utf8_to_int_signed(minute_bytes)) {
 				(Ok(hour), Ok(minute)) if hour >= 0 and hour <= 23 and minute >= 0 and minute <= 59 => {
 					Time.from_hms(hour, minute, 0)->Ok
 				}
@@ -372,9 +362,9 @@ parse_local_time_minute_basic = |bytes| {
 
 parse_local_time_minute_extended : List(U8) -> Try(Time, [InvalidTimeFormat])
 parse_local_time_minute_extended = |bytes| {
-	match split_at_indices(bytes, [2, 3]) {
+	match Utils.split_at_indices(bytes, [2, 3]) {
 		[hour_bytes, _, minute_bytes] => {
-			match (utf8_to_int_signed(hour_bytes), utf8_to_int_signed(minute_bytes)) {
+			match (Utils.utf8_to_int_signed(hour_bytes), Utils.utf8_to_int_signed(minute_bytes)) {
 				(Ok(hour), Ok(minute)) if hour >= 0 and hour <= 23 and minute >= 0 and minute <= 59 => {
 					Time.from_hms(hour, minute, 0)->Ok
 				}
@@ -393,9 +383,9 @@ parse_local_time_minute_extended = |bytes| {
 
 parse_local_time_basic : List(U8) -> Try(Time, [InvalidTimeFormat])
 parse_local_time_basic = |bytes| {
-	match split_at_indices(bytes, [2, 4]) {
+	match Utils.split_at_indices(bytes, [2, 4]) {
 		[hour_bytes, minute_bytes, second_bytes] => {
-			match (utf8_to_int_signed(hour_bytes), utf8_to_int_signed(minute_bytes), utf8_to_int_signed(second_bytes)) {
+			match (Utils.utf8_to_int_signed(hour_bytes), Utils.utf8_to_int_signed(minute_bytes), Utils.utf8_to_int_signed(second_bytes)) {
 				(Ok(h), Ok(m), Ok(s)) if h >= 0 and h <= 23 and m >= 0 and m <= 59 and s >= 0 and s <= 59 => {
 					Time.from_hms(h, m, s)->Ok
 				}
@@ -414,9 +404,9 @@ parse_local_time_basic = |bytes| {
 
 parse_local_time_extended : List(U8) -> Try(Time, [InvalidTimeFormat])
 parse_local_time_extended = |bytes| {
-	match split_at_indices(bytes, [2, 3, 5, 6]) {
+	match Utils.split_at_indices(bytes, [2, 3, 5, 6]) {
 		[hour_bytes, _, minute_bytes, _, second_bytes] => {
-			match (utf8_to_int_signed(hour_bytes), utf8_to_int_signed(minute_bytes), utf8_to_int_signed(second_bytes)) {
+			match (Utils.utf8_to_int_signed(hour_bytes), Utils.utf8_to_int_signed(minute_bytes), Utils.utf8_to_int_signed(second_bytes)) {
 				(Ok(h), Ok(m), Ok(s)) if h >= 0 and h <= 23 and m >= 0 and m <= 59 and s >= 0 and s <= 59 => {
 					Time.from_hms(h, m, s)->Ok
 				}
@@ -448,9 +438,9 @@ join = |list_of_lists| {
 
 round = |x| {
 	if x >= 0.0 {
-		(x + 0.5).to_i64()
+		(x + 0.5).to_i64_wrap()
 	} else {
-		(x - 0.5).to_i64()
+		(x - 0.5).to_i64_wrap()
 	}
 }
 
@@ -482,9 +472,10 @@ expect {
 # <---- from_nanos_since_midnight ---->
 expect Time.from_nanos_since_midnight(-123) == Time.from_hmsn(-1, 59, 59, 999_999_877)
 expect Time.from_nanos_since_midnight(0) == Time.midnight
-expect Time.from_nanos_since_midnight((24 * Const.nanos_per_day)) == Time.from_hms(24, 0, 0)
-expect Time.from_nanos_since_midnight((25 * nanos_per_hour)) == Time.from_hms(25, 0, 0)
-expect Time.from_nanos_since_midnight((12 * nanos_per_hour + 34 * nanos_per_minute + 56 * nanos_per_second + 5)) == Time.from_hmsn(12, 34, 56, 5)
+expect Time.from_nanos_since_midnight((24 * Const.nanos_per_hour)) == Time.from_hms(24, 0, 0)
+expect Time.from_nanos_since_midnight((25 * Const.nanos_per_hour)) == Time.from_hms(25, 0, 0)
+
+expect Time.from_nanos_since_midnight((12 * Const.nanos_per_hour + 34 * Const.nanos_per_minute + 56 * Const.nanos_per_second + 5)) == Time.from_hmsn(12, 34, 56, 5)
 
 # <---- normalize ---->
 expect Time.normalize(Time.from_hms(-1, 0, 0)) == Time.from_hms(23, 0, 0)
@@ -502,16 +493,17 @@ expect {
 # <---- from_nanos_since_midnight ---->
 expect Time.from_nanos_since_midnight(-123) == Time.from_hmsn(-1, 59, 59, 999_999_877)
 expect Time.from_nanos_since_midnight(0) == Time.midnight
-expect Time.from_nanos_since_midnight((24 * Const.nanos_per_day)) == Time.from_hms(24, 0, 0)
-expect Time.from_nanos_since_midnight((25 * Const.nanos_per_day)) == Time.from_hms(25, 0, 0)
+expect Time.from_nanos_since_midnight((24 * Const.nanos_per_hour)) == Time.from_hms(24, 0, 0)
+expect Time.from_nanos_since_midnight((25 * Const.nanos_per_hour)) == Time.from_hms(25, 0, 0)
+
 
 # <---- sub ---->
-expect Time.sub(Time.from_hms(12, 34, 56), Time.from_hms(12, 34, 55)) == Duration.from_seconds(1)
-expect Time.sub(Time.from_hmsn(25, 0, 0, 1), Time.from_hmsn(1, 1, 1, 2)) == Duration.from_nanoseconds(23 * Const.nanos_per_hour + 58 * Const.nanos_per_minute + 59 * Const.nanos_per_second - 1)
-expect Time.sub(Time.from_hms(-12, 34, 56), Time.from_hms(12, 34, 55)) == Duration.from_nanoseconds(-1 * Const.nanos_per_hour * 24 + Const.nanos_per_second)
+expect Time.sub(Time.from_hms(12, 34, 56), Time.from_hms(12, 34, 55)) == Duration.from_seconds(1.I128)
+expect Time.sub(Time.from_hmsn(25, 0, 0, 1), Time.from_hmsn(1, 1, 1, 2)) == Duration.from_nanoseconds(23 * Const.nanos_per_hour.to_i128() + 58 * Const.nanos_per_minute.to_i128() + 59 * Const.nanos_per_second.to_i128() - 1)
+expect Time.sub(Time.from_hms(-12, 34, 56), Time.from_hms(12, 34, 55)) == Duration.from_nanoseconds((-1) * Const.nanos_per_hour.to_i128() * 24 + Const.nanos_per_second.to_i128())
 
 # <---- to_nanos_since_midnight ---->
-expect Time.to_nanos_since_midnight({ hour: 12, minute: 34, second: 56, nanosecond: 5 }) == 12 * nanos_per_hour + 34 * nanos_per_minute + 56 * nanos_per_second + 5
+expect Time.to_nanos_since_midnight({ hour: 12, minute: 34, second: 56, nanosecond: 5 }) == 12 * Const.nanos_per_hour + 34 * Const.nanos_per_minute + 56 * Const.nanos_per_second + 5
 expect Time.to_nanos_since_midnight(Time.from_hmsn(12, 34, 56, 5)) == 12 * Const.nanos_per_hour + 34 * Const.nanos_per_minute + 56 * Const.nanos_per_second + 5
 expect Time.to_nanos_since_midnight(Time.from_hmsn(-1, 0, 0, 0)) == -1 * Const.nanos_per_hour
 
