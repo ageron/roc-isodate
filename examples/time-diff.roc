@@ -1,26 +1,14 @@
 app [main!] {
-	pf: platform "https://github.com/lukewilliamboswell/roc-platform-template-zig/releases/download/0.9/8GdFEvQYS3TeAZxKvTzCLVdQiomweGtXcdZkXNDEeABq.tar.zst",
+	pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.21.0/4rAQg8kUYZ3Vksr4qMQHpaFYNiHSn9GgS7gVxghd1XYV.tar.zst",
 	dt: "../package/main.roc",
 }
 
-#import pf.Sleep
+import pf.Sleep
 import pf.Stdout
-#import pf.Utc
+import pf.Utc
 import dt.Duration
 import dt.Time
 import dt.Now
-
-# Temporary workarounds until the platform provides pf.Utc
-Utc :: {}.{
-	now! = |_| 1785360137473432000.U64
-	to_nanos_since_epoch = |n| n
-}
-
-# Temporary workaround until the platform provides pf.Sleep
-Sleep :: {}.{
-	millis! = |_| {}
-}
-
 
 main! = |_args| {
 	now = Now.create({
@@ -31,7 +19,7 @@ main! = |_args| {
 	Sleep.millis!(1000)
 	end = now.time!()
 	duration = Time.sub(end, start)
-	Duration.format(duration, "Slept for {s}.{f} seconds")
+	_ = Duration.format(duration, "Slept for {s}.{f} seconds")
 		->Stdout.line!()
 	Ok({})
 }

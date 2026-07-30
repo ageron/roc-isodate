@@ -26,7 +26,7 @@ Utils :: {}.{
 	validate_utf8_single_bytes : List(U8) -> Bool
 	validate_utf8_single_bytes = |u8_list| u8_list.all(|b| b < 128)
 
-	utf8_to_int : List(U8) -> Try(U64, [InvalidBytes])
+	utf8_to_int : List(U8) -> Try(U64, [InvalidBytes, ..])
 	utf8_to_int = |u8_list| {
 		u8_list
 			.rev()
@@ -43,7 +43,7 @@ Utils :: {}.{
 			)
 	}
 
-	utf8_to_int_signed : List(U8) -> Try(I64, [InvalidBytes])
+	utf8_to_int_signed : List(U8) -> Try(I64, [InvalidBytes, ..])
 	utf8_to_int_signed = |u8_list| {
 		match u8_list {
 			['-', .. as xs] => {
@@ -61,7 +61,7 @@ Utils :: {}.{
 		}
 	}
 
-	utf8_to_frac : List(U8) -> Try(F64, [InvalidBytes])
+	utf8_to_frac : List(U8) -> Try(F64, [InvalidBytes, ..])
 	utf8_to_frac = |u8_list| {
 		match split_with_delims(u8_list, |b| b == ',' or b == '.') {
 			[head, [byte], tail] if byte == ',' or byte == '.' => {

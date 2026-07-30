@@ -121,11 +121,11 @@ DateTime :: { date : Date, time : Time }.{
 	}
 
 	## Convert an ISO 8601 string to a `DateTime` object.
-	from_iso_str : Str -> Try(DateTime, [InvalidDateTimeFormat])
+	from_iso_str : Str -> Try(DateTime, [InvalidDateTimeFormat, ..])
 	from_iso_str = |str| str.to_utf8()->from_iso_u8()
 
 	## Convert an ISO 8601 list of UTF-8 bytes to a `DateTime` object.
-	from_iso_u8 : List(U8) -> Try(DateTime, [InvalidDateTimeFormat])
+	from_iso_u8 : List(U8) -> Try(DateTime, [InvalidDateTimeFormat, ..])
 	from_iso_u8 = |bytes| {
 		match Utils.split_with_delims(bytes, |b| b == 'T') {
 			[date_bytes, ['T'], time_bytes] => {

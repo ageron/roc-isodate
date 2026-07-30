@@ -127,12 +127,12 @@ Date :: {
 	}
 
 	## Convert the given ISO 8601 string to a `Date`.
-	from_iso_str : Str -> Try(Date, [InvalidDateFormat])
+	from_iso_str : Str -> Try(Date, [InvalidDateFormat, ..])
 	from_iso_str = |str| str.to_utf8() -> from_iso_u8()
 
 	# TODO: More efficient parsing method?
 	## Convert the given ISO 8601 list of UTF-8 bytes to a `Date`.
-	from_iso_u8 : List(U8) -> Try(Date, [InvalidDateFormat])
+	from_iso_u8 : List(U8) -> Try(Date, [InvalidDateFormat, ..])
 	from_iso_u8 = |bytes| {
 		if Utils.validate_utf8_single_bytes(bytes) {
 			match bytes {
@@ -320,7 +320,7 @@ signed_leap_years_since_epoch = |year| {
     leaps_up_to(year - 1) - leaps_up_to(1970 - 1)
 }
 
-parse_calendar_date_century : List(U8) -> Try(Date, [InvalidDateFormat])
+parse_calendar_date_century : List(U8) -> Try(Date, [InvalidDateFormat, ..])
 parse_calendar_date_century = |bytes| {
 	match Utils.utf8_to_int_signed(bytes) {
 		Ok(century) => Date.from_ymd(century * 100, 1, 1)->Ok()
@@ -328,7 +328,7 @@ parse_calendar_date_century = |bytes| {
 	}
 }
 
-parse_calendar_date_year : List(U8) -> Try(Date, [InvalidDateFormat])
+parse_calendar_date_year : List(U8) -> Try(Date, [InvalidDateFormat, ..])
 parse_calendar_date_year = |bytes| {
 	match Utils.utf8_to_int_signed(bytes) {
 		Ok(year) => Date.from_ymd(year, 1, 1)->Ok()
@@ -336,7 +336,7 @@ parse_calendar_date_year = |bytes| {
 	}
 }
 
-parse_calendar_date_month : List(U8) -> Try(Date, [InvalidDateFormat])
+parse_calendar_date_month : List(U8) -> Try(Date, [InvalidDateFormat, ..])
 parse_calendar_date_month = |bytes| {
 	match Utils.split_at_indices(bytes, [4, 5]) {
 		[year_bytes, _, month_bytes] => {
@@ -351,7 +351,7 @@ parse_calendar_date_month = |bytes| {
 	}
 }
 
-parse_ordinal_date_basic : List(U8) -> Try(Date, [InvalidDateFormat])
+parse_ordinal_date_basic : List(U8) -> Try(Date, [InvalidDateFormat, ..])
 parse_ordinal_date_basic = |bytes| {
 	match Utils.split_at_indices(bytes, [4]) {
 		[year_bytes, day_bytes] => {
@@ -366,7 +366,7 @@ parse_ordinal_date_basic = |bytes| {
 	}
 }
 
-parse_ordinal_date_extended : List(U8) -> Try(Date, [InvalidDateFormat])
+parse_ordinal_date_extended : List(U8) -> Try(Date, [InvalidDateFormat, ..])
 parse_ordinal_date_extended = |bytes| {
 	match Utils.split_at_indices(bytes, [4, 5]) {
 		[year_bytes, _, day_bytes] => {
@@ -381,7 +381,7 @@ parse_ordinal_date_extended = |bytes| {
 	}
 }
 
-parse_week_date_reduced_basic : List(U8) -> Try(Date, [InvalidDateFormat])
+parse_week_date_reduced_basic : List(U8) -> Try(Date, [InvalidDateFormat, ..])
 parse_week_date_reduced_basic = |bytes| {
 	match Utils.split_at_indices(bytes, [4, 5]) {
 		[year_bytes, _, week_bytes] => {
@@ -396,7 +396,7 @@ parse_week_date_reduced_basic = |bytes| {
 	}
 }
 
-parse_week_date_reduced_extended : List(U8) -> Try(Date, [InvalidDateFormat])
+parse_week_date_reduced_extended : List(U8) -> Try(Date, [InvalidDateFormat, ..])
 parse_week_date_reduced_extended = |bytes| {
 	match Utils.split_at_indices(bytes, [4, 6]) {
 		[year_bytes, _, week_bytes] => {
@@ -411,7 +411,7 @@ parse_week_date_reduced_extended = |bytes| {
 	}
 }
 
-parse_week_date_basic : List(U8) -> Try(Date, [InvalidDateFormat])
+parse_week_date_basic : List(U8) -> Try(Date, [InvalidDateFormat, ..])
 parse_week_date_basic = |bytes| {
 	match Utils.split_at_indices(bytes, [4, 5, 7]) {
 		[year_bytes, _, week_bytes, day_bytes] => {
@@ -426,7 +426,7 @@ parse_week_date_basic = |bytes| {
 	}
 }
 
-parse_week_date_extended : List(U8) -> Try(Date, [InvalidDateFormat])
+parse_week_date_extended : List(U8) -> Try(Date, [InvalidDateFormat, ..])
 parse_week_date_extended = |bytes| {
 	match Utils.split_at_indices(bytes, [4, 6, 8, 9]) {
 		[year_bytes, _, week_bytes, _, day_bytes] => {
@@ -441,7 +441,7 @@ parse_week_date_extended = |bytes| {
 	}
 }
 
-parse_calendar_date_basic : List(U8) -> Try(Date, [InvalidDateFormat])
+parse_calendar_date_basic : List(U8) -> Try(Date, [InvalidDateFormat, ..])
 parse_calendar_date_basic = |bytes| {
 	match Utils.split_at_indices(bytes, [4, 6]) {
 		[year_bytes, month_bytes, day_bytes] => {
@@ -456,7 +456,7 @@ parse_calendar_date_basic = |bytes| {
 	}
 }
 
-parse_calendar_date_extended : List(U8) -> Try(Date, [InvalidDateFormat])
+parse_calendar_date_extended : List(U8) -> Try(Date, [InvalidDateFormat, ..])
 parse_calendar_date_extended = |bytes| {
 	match Utils.split_at_indices(bytes, [4, 5, 7, 8]) {
 		[year_bytes, _, month_bytes, _, day_bytes] => {
