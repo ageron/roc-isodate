@@ -294,17 +294,8 @@ num_days_since_epoch = |date| {
     is_leap = is_leap_year(date.year)
     get_month_days = |m| Const.month_days({ month: m, is_leap }) ?? { crash "Unreachable" }
     
-    days_in_prior_months = (1..<date.month).map(|m| get_month_days(m).to_i64())->sum()
+    days_in_prior_months = (1..<date.month).map(|m| get_month_days(m).to_i64()).sum()
     days_to_start_of_year + days_in_prior_months + date.day_of_month.to_i64() - 1
-}
-
-## Computes the sum of values from an Iter (should soon be part of the Roc builtins)
-sum = |iter| {
-	var $s = 0
-	for value in iter {
-		$s = $s + value
-	}
-	$s
 }
 
 ## Calculate the number of days since the epoch until the given year.
@@ -489,7 +480,7 @@ weekday_help = |year, month, day| {
 ## Convert the given year, month, and day of the month to the day of the year.
 ymd_to_days_in_year : I64, U8, U8 -> U16
 ymd_to_days_in_year = |year, month, day| {
-	(1..<month).map(|m| Date.days_in_month(year, m).to_u16())->sum() + day.to_u16()
+	(1..<month).map(|m| Date.days_in_month(year, m).to_u16()).sum() + day.to_u16()
 }
 
 # <===== TESTS ====>
