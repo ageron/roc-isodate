@@ -272,6 +272,12 @@ Date :: {
 	## Get the day of the week for a `Date` object (0 = Sunday, 6 = Saturday).
 	weekday : Date -> U8
 	weekday = |date| weekday_help(date.year, date.month, date.day_of_month)
+
+	## Returns the number of days in the given month of the given year.
+	days_in_month : I64, U8 -> U8
+	days_in_month = |year, month| {
+		Const.month_days({ month, is_leap: is_leap_year(year) }) ?? { crash "Invalid month: must be between 1 and 12" }
+	}
 }
 
 ## Check whether the given year is a leap year.
@@ -471,12 +477,6 @@ parse_calendar_date_extended = |bytes| {
 	}
 }
 
-## Returns the number of days in the given month of the given year.
-days_in_month : I64, U8 -> U8
-days_in_month = |year, month| {
-	Const.month_days({ month, is_leap: is_leap_year(year) }) ?? { crash "Invalid month: must be between 1 and 12" }
-}
-
 ## Return the day of the week, from 0=Sunday to 6=Saturday
 weekday_help : I64, U8, U8 -> U8
 weekday_help = |year, month, day| {
@@ -489,7 +489,7 @@ weekday_help = |year, month, day| {
 ## Convert the given year, month, and day of the month to the day of the year.
 ymd_to_days_in_year : I64, U8, U8 -> U16
 ymd_to_days_in_year = |year, month, day| {
-	(1..<month).map(|m| days_in_month(year, m).to_u16())->sum() + day.to_u16()
+	(1..<month).map(|m| Date.days_in_month(year, m).to_u16())->sum() + day.to_u16()
 }
 
 # <===== TESTS ====>
@@ -555,19 +555,19 @@ expect Date.calendar_week_to_days_in_year(1, 1973) == 0
 expect Date.calendar_week_to_days_in_year(2, 2024) == 7
 
 # <---- days_in_month ---->
-expect days_in_month(1969, 1) == 31
-expect days_in_month(1969, 2) == 28
-expect days_in_month(1969, 3) == 31
-expect days_in_month(1969, 4) == 30
-expect days_in_month(1969, 5) == 31
-expect days_in_month(1969, 6) == 30
-expect days_in_month(1969, 7) == 31
-expect days_in_month(1969, 8) == 31
-expect days_in_month(1969, 9) == 30
-expect days_in_month(1969, 10) == 31
-expect days_in_month(1969, 11) == 30
-expect days_in_month(1969, 12) == 31
-expect days_in_month(2024, 2) == 29
+expect Date.days_in_month(1969, 1) == 31
+expect Date.days_in_month(1969, 2) == 28
+expect Date.days_in_month(1969, 3) == 31
+expect Date.days_in_month(1969, 4) == 30
+expect Date.days_in_month(1969, 5) == 31
+expect Date.days_in_month(1969, 6) == 30
+expect Date.days_in_month(1969, 7) == 31
+expect Date.days_in_month(1969, 8) == 31
+expect Date.days_in_month(1969, 9) == 30
+expect Date.days_in_month(1969, 10) == 31
+expect Date.days_in_month(1969, 11) == 30
+expect Date.days_in_month(1969, 12) == 31
+expect Date.days_in_month(2024, 2) == 29
 
 # <---- equal ---->
 expect {
