@@ -73,20 +73,20 @@ DateTime :: { date : Date, time : Time }.{
 
 	## Determine if the first `DateTime` occurs after the second `DateTime`.
 	after : DateTime, DateTime -> Bool
-	after = |a, b| compare(a, b) == GT
+	after = |a, b| compare(a, b) == SecondBeforeFirst
 
 	## Determine if the first `DateTime` occurs before the second `DateTime`.
 	before : DateTime, DateTime -> Bool
-	before = |a, b| compare(a, b) == LT
+	before = |a, b| compare(a, b) == FirstBeforeSecond
 
 	## Compare two `DateTime` objects.
-	## If the first occurs before the second, it returns LT.
-	## If the first and the second are equal, it returns EQ.
-	## If the first occurs after the second, it returns GT.
-	compare : DateTime, DateTime -> [LT, EQ, GT]
+	## If the first occurs before the second, it returns FirstBeforeSecond.
+	## If the first and the second are equal, it returns Equivalent.
+	## If the first occurs after the second, it returns SecondBeforeFirst.
+	compare : DateTime, DateTime -> [FirstBeforeSecond, Equivalent, SecondBeforeFirst]
 	compare = |a, b| {
 		Date.compare(a.date, b.date)
-			->(|result| if result != EQ {
+			->(|result| if result != Equivalent {
 				result
 			} else {
 				Time.compare(a.time, b.time)
@@ -95,7 +95,7 @@ DateTime :: { date : Date, time : Time }.{
 
 	## Determine if the first `DateTime` equals the second `DateTime`.
 	equal : DateTime, DateTime -> Bool
-	equal = |a, b| compare(a, b) == EQ
+	equal = |a, b| compare(a, b) == Equivalent
 
 	## Format a `DateTime` object according to the given format string.
 	## The following placeholders are supported:

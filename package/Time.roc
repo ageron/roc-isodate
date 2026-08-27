@@ -66,30 +66,30 @@ Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
 
 	## Determine if the first `Time` occurs after the second `Time`.
 	after : Time, Time -> Bool
-	after = |a, b| compare(a, b) == GT
+	after = |a, b| compare(a, b) == SecondBeforeFirst
 
 	## Determine if the first `Time` occurs before the second `Time`.
 	before : Time, Time -> Bool
-	before = |a, b| compare(a, b) == LT
+	before = |a, b| compare(a, b) == FirstBeforeSecond
 
 	## Compare two `Time` objects.
-	## If the first occurs before the second, it returns LT.
-	## If the first and the second are equal, it returns EQ.
-	## If the first occurs after the second, it returns GT.
-	compare : Time, Time -> [LT, EQ, GT]
+	## If the first occurs before the second, it returns FirstBeforeSecond.
+	## If the first and the second are equal, it returns Equivalent.
+	## If the first occurs after the second, it returns SecondBeforeFirst.
+	compare : Time, Time -> [FirstBeforeSecond, Equivalent, SecondBeforeFirst]
 	compare = |a, b| {
 		a.hour.compare(b.hour)
-			->(|result| if result != EQ {
+			->(|result| if result != Equivalent {
 				result
 			} else {
 				a.minute.compare(b.minute)
 			})
-			->(|result| if result != EQ {
+			->(|result| if result != Equivalent {
 				result
 			} else {
 				a.second.compare(b.second)
 			})
-			->(|result| if result != EQ {
+			->(|result| if result != Equivalent {
 				result
 			} else {
 				a.nanosecond.compare(b.nanosecond)
@@ -98,7 +98,7 @@ Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
 
 	## Determine if the first `Time` is equal to the second `Time`.
 	equal : Time, Time -> Bool
-	equal = |a, b| compare(a, b) == EQ
+	equal = |a, b| compare(a, b) == Equivalent
 
 	## Format a `Time` object according to the given format string.
 	## The following placeholders are supported:
