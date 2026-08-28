@@ -115,7 +115,7 @@ Utils :: {}.{
 				}
 			}
 		}
-		help([], list, indices.sort_with(|a, b| a.compare(b)), 0)
+		help([], list, indices.sort_with(|a, b| a.order_relative_to(b)), 0)
 	}
 
 	split_with_delims = |list, is_delim| {

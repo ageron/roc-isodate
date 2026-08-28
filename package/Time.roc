@@ -66,39 +66,39 @@ Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
 
 	## Determine if the first `Time` occurs after the second `Time`.
 	after : Time, Time -> Bool
-	after = |a, b| compare(a, b) == SecondBeforeFirst
+	after = |a, b| a.order_relative_to(b) == After
 
 	## Determine if the first `Time` occurs before the second `Time`.
 	before : Time, Time -> Bool
-	before = |a, b| compare(a, b) == FirstBeforeSecond
+	before = |a, b| a.order_relative_to(b) == Before
 
 	## Compare two `Time` objects.
-	## If the first occurs before the second, it returns FirstBeforeSecond.
-	## If the first and the second are equal, it returns Equivalent.
-	## If the first occurs after the second, it returns SecondBeforeFirst.
-	compare : Time, Time -> [FirstBeforeSecond, Equivalent, SecondBeforeFirst]
-	compare = |a, b| {
-		a.hour.compare(b.hour)
-			->(|result| if result != Equivalent {
+	## If the first occurs before the second, it returns Before.
+	## If the first and the second are equal, it returns Same.
+	## If the first occurs after the second, it returns After.
+	order_relative_to : Time, Time -> [Before, Same, After]
+	order_relative_to = |a, b| {
+		a.hour.order_relative_to(b.hour)
+			->(|result| if result != Same {
 				result
 			} else {
-				a.minute.compare(b.minute)
+				a.minute.order_relative_to(b.minute)
 			})
-			->(|result| if result != Equivalent {
+			->(|result| if result != Same {
 				result
 			} else {
-				a.second.compare(b.second)
+				a.second.order_relative_to(b.second)
 			})
-			->(|result| if result != Equivalent {
+			->(|result| if result != Same {
 				result
 			} else {
-				a.nanosecond.compare(b.nanosecond)
+				a.nanosecond.order_relative_to(b.nanosecond)
 			})
 	}
 
 	## Determine if the first `Time` is equal to the second `Time`.
 	equal : Time, Time -> Bool
-	equal = |a, b| compare(a, b) == Equivalent
+	equal = |a, b| a.order_relative_to(b) == Same
 
 	## Format a `Time` object according to the given format string.
 	## The following placeholders are supported:

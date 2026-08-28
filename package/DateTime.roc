@@ -73,29 +73,27 @@ DateTime :: { date : Date, time : Time }.{
 
 	## Determine if the first `DateTime` occurs after the second `DateTime`.
 	after : DateTime, DateTime -> Bool
-	after = |a, b| compare(a, b) == SecondBeforeFirst
+	after = |a, b| a.order_relative_to(b) == After
 
 	## Determine if the first `DateTime` occurs before the second `DateTime`.
 	before : DateTime, DateTime -> Bool
-	before = |a, b| compare(a, b) == FirstBeforeSecond
+	before = |a, b| a.order_relative_to(b) == Before
 
 	## Compare two `DateTime` objects.
-	## If the first occurs before the second, it returns FirstBeforeSecond.
-	## If the first and the second are equal, it returns Equivalent.
-	## If the first occurs after the second, it returns SecondBeforeFirst.
-	compare : DateTime, DateTime -> [FirstBeforeSecond, Equivalent, SecondBeforeFirst]
-	compare = |a, b| {
-		Date.compare(a.date, b.date)
-			->(|result| if result != Equivalent {
-				result
-			} else {
-				Time.compare(a.time, b.time)
-			})
+	## If the first occurs before the second, it returns Before.
+	## If the first and the second are equal, it returns Same.
+	## If the first occurs after the second, it returns After.
+	order_relative_to : DateTime, DateTime -> [Before, Same, After]
+	order_relative_to = |a, b| {
+		match a.date.order_relative_to(b.date) {
+			Same => a.time.order_relative_to(b.time)
+			result => result
+		}
 	}
 
 	## Determine if the first `DateTime` equals the second `DateTime`.
 	equal : DateTime, DateTime -> Bool
-	equal = |a, b| compare(a, b) == Equivalent
+	equal = |a, b| a.order_relative_to(b) == Same
 
 	## Format a `DateTime` object according to the given format string.
 	## The following placeholders are supported:

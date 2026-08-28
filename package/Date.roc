@@ -65,11 +65,11 @@ Date :: {
 
 	## Determine if the first `Date` falls after the second `Date`.
 	after : Date, Date -> Bool
-	after = |a, b| compare(a, b) == SecondBeforeFirst
+	after = |a, b| a.order_relative_to(b) == After
 
 	## Determine if the first `Date` falls before the second `Date`.
 	before : Date, Date -> Bool
-	before = |a, b| compare(a, b) == FirstBeforeSecond
+	before = |a, b| a.order_relative_to(b) == Before
 
 	## Convert the given calendar week and year to the day of the year.
 	calendar_week_to_days_in_year : U8, I64 -> I64
@@ -92,13 +92,13 @@ Date :: {
 	}
 
 	## Compare two `Date` objects.
-	## If the first is before the second, it returns FirstBeforeSecond.
-	## If the first is after the second, it returns SecondBeforeFirst.
-	## If the first and the second are the equal, it returns Equivalent.
-	compare : Date, Date -> [FirstBeforeSecond, Equivalent, SecondBeforeFirst]
-	compare = |a, b| {
-		match a.year.compare(b.year) {
-			Equivalent => a.day_of_year.compare(b.day_of_year)
+	## If the first is before the second, it returns Before.
+	## If the first is after the second, it returns After.
+	## If the first and the second are equal, it returns Same.
+	order_relative_to : Date, Date -> [Before, Same, After]
+	order_relative_to = |a, b| {
+		match a.year.order_relative_to(b.year) {
+			Same => a.day_of_year.order_relative_to(b.day_of_year)
 			result => result
 		}
 	}
