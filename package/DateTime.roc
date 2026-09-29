@@ -48,7 +48,7 @@ DateTime :: { date : Date, time : Time }.{
 	add_nanoseconds = |date_time, nanos| {
 		# new_time = Time.add_nanoseconds(date_time.time, nanos)
 		time_nanos = Time.to_nanos_since_midnight(date_time.time) + nanos
-		days = 
+		days =
 			if time_nanos >= 0 {
 				time_nanos // Const.nanos_per_day.to_i64()
 			} else {
@@ -60,7 +60,7 @@ DateTime :: { date : Date, time : Time }.{
 					}
 				)
 			}
-		{ date: Date.add_days(date_time.date, days), time: Time.from_nanos_since_midnight(time_nanos)->Time.normalize() }
+		{ date: Date.add_days(date_time.date, days), time: Time.from_nanos_since_midnight(time_nanos) |> Time.normalize }
 	}
 
 	## Add seconds to a `DateTime` object.
@@ -119,18 +119,18 @@ DateTime :: { date : Date, time : Time }.{
 	}
 
 	## Convert an ISO 8601 string to a `DateTime` object.
-	from_iso_str : Str -> Try(DateTime, [InvalidDateTimeFormat, ..])
-	from_iso_str = |str| str.to_utf8()->from_iso_u8()
+	from_iso_str : Str -> Try(DateTime, [InvalidDateTimeFormat])
+	from_iso_str = |str| str.to_utf8() |> from_iso_u8
 
 	## Convert an ISO 8601 list of UTF-8 bytes to a `DateTime` object.
-	from_iso_u8 : List(U8) -> Try(DateTime, [InvalidDateTimeFormat, ..])
+	from_iso_u8 : List(U8) -> Try(DateTime, [InvalidDateTimeFormat])
 	from_iso_u8 = |bytes| {
 		match Utils.split_with_delims(bytes, |b| b == 'T') {
 			[date_bytes, ['T'], time_bytes] => {
 				# TODO: currently cannot support timezone offsets which exceed or precede the current day
 				match (Date.from_iso_u8(date_bytes), Time.from_iso_u8(time_bytes)) {
 					(Ok(date), Ok(time)) => {
-						normalize({ date, time })->Ok()
+						normalize({ date, time }) |> Ok
 					}
 					_ => Err(InvalidDateTimeFormat)
 				}
@@ -138,7 +138,7 @@ DateTime :: { date : Date, time : Time }.{
 			[date_bytes] => {
 				match Date.from_iso_u8(date_bytes) {
 					Ok(date) => {
-						{ date, time: Time.from_hms(0, 0, 0) }->Ok()
+						{ date, time: Time.from_hms(0, 0, 0) } |> Ok
 					}
 					_ => Err(InvalidDateTimeFormat)
 				}
@@ -150,7 +150,7 @@ DateTime :: { date : Date, time : Time }.{
 	## Convert the number of nanoseconds since the Unix epoch to a `DateTime` object.
 	from_nanos_since_epoch : I128 -> DateTime
 	from_nanos_since_epoch = |nanos| {
-		time_nanos = 
+		time_nanos =
 			if nanos < 0 and nanos % Const.nanos_per_day.to_i128() != 0 {
 				nanos % Const.nanos_per_day.to_i128() + Const.nanos_per_day.to_i128()
 			} else {
@@ -331,4 +331,3 @@ expect DateTime.to_iso_u8(DateTime.unix_epoch) == Str.to_utf8("1970-01-01T00:00:
 
 # <--- to_nanos_since_epoch --->
 expect DateTime.to_nanos_since_epoch(DateTime.from_ymdhmsn(1970, 12, 31, 12, 34, 56, 5)) == 364 * Const.nanos_per_day.to_i128() + 12 * Const.nanos_per_hour.to_i128() + 34 * Const.nanos_per_minute.to_i128() + 56 * Const.nanos_per_second.to_i128() + 5
-

@@ -1,7 +1,9 @@
-package [
-    Date,
-    DateTime,
-    Duration,
-    Time,
-    Now,
-] {}
+package
+	[
+		Date,
+		DateTime,
+		Duration,
+		Time,
+		Now,
+	]
+	{}

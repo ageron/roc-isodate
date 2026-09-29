@@ -28,7 +28,7 @@ Const :: {}.{
 	days_per_week = 7.U8
 	weeks_per_year = 52.U8
 
-	month_days : { month : _, is_leap : Bool } -> Try(U8, [InvalidMonth, ..])
+	month_days : { month : _, is_leap : Bool } -> Try(U8, [InvalidMonth])
 	month_days = |{ month, is_leap }| {
 		match month {
 			1 | 3 | 5 | 7 | 8 | 10 | 12 => Ok(31)

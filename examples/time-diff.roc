@@ -20,6 +20,6 @@ main! = |_args| {
 	end = now.time!()
 	duration = Time.sub(end, start)
 	_ = Duration.format(duration, "Slept for {s}.{f} seconds")
-		->Stdout.line!()
+		|> Stdout.line!
 	Ok({})
 }

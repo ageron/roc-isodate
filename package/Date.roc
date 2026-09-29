@@ -19,6 +19,7 @@ Date :: {
 	day_of_month : U8,
 	day_of_year : U16,
 }.{
+
 	## Are two Dates equal?
 	is_eq : Date, Date -> Bool
 	is_eq = |a, b| a.year == b.year and a.day_of_year == b.day_of_year
@@ -46,7 +47,11 @@ Date :: {
 	add_months = |date, months| {
 		total_months = date.year * 12 + (date.month.to_i64() - 1) + months
 		new_year = total_months.div_floor_by(12)
-		new_month = ((total_months - new_year * 12).to_u8_try() ?? { crash "Unreachable" }) + 1
+		new_month = (
+			(total_months - new_year * 12).to_u8_try() ?? {
+				crash "Unreachable"
+			}
+		) + 1
 		days_in_new_month = days_in_month(new_year, new_month)
 		new_day =
 			if date.day_of_month > days_in_new_month {
@@ -127,12 +132,12 @@ Date :: {
 	}
 
 	## Convert the given ISO 8601 string to a `Date`.
-	from_iso_str : Str -> Try(Date, [InvalidDateFormat, ..])
-	from_iso_str = |str| str.to_utf8() -> from_iso_u8()
+	from_iso_str : Str -> Try(Date, [InvalidDateFormat])
+	from_iso_str = |str| str.to_utf8() |> from_iso_u8
 
 	# TODO: More efficient parsing method?
 	## Convert the given ISO 8601 list of UTF-8 bytes to a `Date`.
-	from_iso_u8 : List(U8) -> Try(Date, [InvalidDateFormat, ..])
+	from_iso_u8 : List(U8) -> Try(Date, [InvalidDateFormat])
 	from_iso_u8 = |bytes| {
 		if Utils.validate_utf8_single_bytes(bytes) {
 			match bytes {
@@ -163,7 +168,11 @@ Date :: {
 		z = days_since_epoch + 719468
 
 		# 2. Split into 400-year Gregorian eras (146,097 days per era)
-		era = if z >= 0 { z // 146097 } else { (z - 146096) // 146097 }
+		era = if z >= 0 {
+			z // 146097
+		} else {
+			(z - 146096) // 146097
+		}
 
 		# Day of era: [0, 146096]
 		doe = z - era * 146097
@@ -184,19 +193,39 @@ Date :: {
 		day = doy - (153 * mp + 2) // 5 + 1
 
 		# Convert month from March-based [0, 11] to standard [1, 12]
-		month = if mp < 10 { mp + 3 } else { mp - 9 }
+		month = if mp < 10 {
+			mp + 3
+		} else {
+			mp - 9
+		}
 
 		# Adjust calendar year for January and February (which belong to the next calendar year)
-		year = if month <= 2 { y_march + 1 } else { y_march }
+		year = if month <= 2 {
+			y_march + 1
+		} else {
+			y_march
+		}
 
-		from_ymd(year, month.to_u8_try() ?? { crash "Unreachable" }, day.to_u8_try() ?? { crash "Unreachable" })
+		from_ymd(
+			year,
+			month.to_u8_try() ?? {
+				crash "Unreachable"
+			},
+			day.to_u8_try() ?? {
+				crash "Unreachable"
+			},
+		)
 	}
 
 	## Create a `Date` object from the given nanoseconds since the epoch.
 	from_nanos_since_epoch : I128 -> Date
 	from_nanos_since_epoch = |nanos| {
 		days = nanos.div_floor_by(Const.nanos_per_day.to_i128())
-		from_days_since_epoch(days.to_i64_try() ?? { crash "Days overflow I64" })
+		from_days_since_epoch(
+			days.to_i64_try() ?? {
+				crash "Days overflow I64"
+			},
+		)
 	}
 
 	## Create a `Date` object from the given year and day of the year.
@@ -220,15 +249,38 @@ Date :: {
 	## Create a `Date` object from the given year, week, and day of the week.
 	from_ywd : I64, U8, U8 -> Date
 	from_ywd = |year, week, day| {
-		days_in_year = if is_leap_year(year) { 366 } else { 365 }
+		days_in_year = if is_leap_year(year) {
+			366
+		} else {
+			365
+		}
 		d = calendar_week_to_days_in_year(week, year) + day.to_i64()
 		if d > days_in_year {
-			from_yd(year + 1, (d - days_in_year).to_u16_try() ?? { crash "Unreachable" })
+			from_yd(
+				year + 1,
+				(d - days_in_year).to_u16_try() ?? {
+					crash "Unreachable"
+				},
+			)
 		} else if d <= 0 {
-			days_in_prev_year = if is_leap_year(year - 1) { 366 } else { 365 }
-			from_yd(year - 1, (d + days_in_prev_year).to_u16_try() ?? { crash "Unreachable" })
+			days_in_prev_year = if is_leap_year(year - 1) {
+				366
+			} else {
+				365
+			}
+			from_yd(
+				year - 1,
+				(d + days_in_prev_year).to_u16_try() ?? {
+					crash "Unreachable"
+				},
+			)
 		} else {
-			from_yd(year, d.to_u16_try() ?? { crash "Unreachable" })
+			from_yd(
+				year,
+				d.to_u16_try() ?? {
+					crash "Unreachable"
+				},
+			)
 		}
 	}
 
@@ -276,7 +328,9 @@ Date :: {
 	## Returns the number of days in the given month of the given year.
 	days_in_month : I64, U8 -> U8
 	days_in_month = |year, month| {
-		Const.month_days({ month, is_leap: is_leap_year(year) }) ?? { crash "Invalid month: must be between 1 and 12" }
+		Const.month_days({ month, is_leap: is_leap_year(year) }) ?? {
+			crash "Invalid month: must be between 1 and 12"
+		}
 	}
 }
 
@@ -288,14 +342,16 @@ is_leap_year = |year| {
 ## Calculate the number of days since the epoch.
 num_days_since_epoch : Date -> I64
 num_days_since_epoch = |date| {
-    days_to_start_of_year = 
-        (date.year - Const.epoch_year) * 365 + signed_leap_years_since_epoch(date.year)
+	days_to_start_of_year =
+		(date.year - Const.epoch_year) * 365 + signed_leap_years_since_epoch(date.year)
 
-    is_leap = is_leap_year(date.year)
-    get_month_days = |m| Const.month_days({ month: m, is_leap }) ?? { crash "Unreachable" }
-    
-    days_in_prior_months = (1..<date.month).iter().map(|m| get_month_days(m).to_i64()).sum()
-    days_to_start_of_year + days_in_prior_months + date.day_of_month.to_i64() - 1
+	is_leap = is_leap_year(date.year)
+	get_month_days = |m| Const.month_days({ month: m, is_leap }) ?? {
+		crash "Unreachable"
+	}
+
+	days_in_prior_months = (1..<date.month).iter().map(|m| get_month_days(m).to_i64()).sum()
+	days_to_start_of_year + days_in_prior_months + date.day_of_month.to_i64() - 1
 }
 
 ## Calculate the number of days since the epoch until the given year.
@@ -307,39 +363,46 @@ num_days_since_epoch_until_year = |year| {
 ## Computes the total number of leap years from year -infinity up to `y` (inclusive).
 leaps_up_to : I64 -> I64
 leaps_up_to = |y| {
-    y.div_floor_by(4) - y.div_floor_by(100) + y.div_floor_by(400)
+	y.div_floor_by(4) - y.div_floor_by(100) + y.div_floor_by(400)
 }
 
 ## Returns the signed offset of leap years strictly between the epoch and the start of `year`.
 signed_leap_years_since_epoch : I64 -> I64
 signed_leap_years_since_epoch = |year| {
-    # We want leaps up to (year - 1), because we are calculating days to the *start* of `year`
-    leaps_up_to(year - 1) - leaps_up_to(1970 - 1)
+	# We want leaps up to (year - 1), because we are calculating days to the *start* of `year`
+	leaps_up_to(year - 1) - leaps_up_to(1970 - 1)
 }
 
-parse_calendar_date_century : List(U8) -> Try(Date, [InvalidDateFormat, ..])
+parse_calendar_date_century : List(U8) -> Try(Date, [InvalidDateFormat])
 parse_calendar_date_century = |bytes| {
 	match Utils.utf8_to_int_signed(bytes) {
-		Ok(century) => Date.from_ymd(century * 100, 1, 1)->Ok()
+		Ok(century) => Date.from_ymd(century * 100, 1, 1) |> Ok
 		_ => Err(InvalidDateFormat)
 	}
 }
 
-parse_calendar_date_year : List(U8) -> Try(Date, [InvalidDateFormat, ..])
+parse_calendar_date_year : List(U8) -> Try(Date, [InvalidDateFormat])
 parse_calendar_date_year = |bytes| {
 	match Utils.utf8_to_int_signed(bytes) {
-		Ok(year) => Date.from_ymd(year, 1, 1)->Ok()
+		Ok(year) => Date.from_ymd(year, 1, 1) |> Ok
 		_ => Err(InvalidDateFormat)
 	}
 }
 
-parse_calendar_date_month : List(U8) -> Try(Date, [InvalidDateFormat, ..])
+parse_calendar_date_month : List(U8) -> Try(Date, [InvalidDateFormat])
 parse_calendar_date_month = |bytes| {
 	match Utils.split_at_indices(bytes, [4, 5]) {
 		[year_bytes, _, month_bytes] => {
 			match (Utils.utf8_to_int_signed(year_bytes), Utils.utf8_to_int(month_bytes)) {
 				(Ok(year), Ok(month)) if month >= 1 and month <= 12 => {
-					Date.from_ymd(year, month.to_u8_try() ?? { crash "Unreachable" }, 1)->Ok()
+					Date.from_ymd(
+						year,
+						month.to_u8_try() ?? {
+							crash "Unreachable"
+						},
+						1,
+					)
+						|> Ok
 				}
 				_ => Err(InvalidDateFormat)
 			}
@@ -348,13 +411,19 @@ parse_calendar_date_month = |bytes| {
 	}
 }
 
-parse_ordinal_date_basic : List(U8) -> Try(Date, [InvalidDateFormat, ..])
+parse_ordinal_date_basic : List(U8) -> Try(Date, [InvalidDateFormat])
 parse_ordinal_date_basic = |bytes| {
 	match Utils.split_at_indices(bytes, [4]) {
 		[year_bytes, day_bytes] => {
 			match (Utils.utf8_to_int_signed(year_bytes), Utils.utf8_to_int(day_bytes)) {
 				(Ok(year), Ok(day)) if day >= 1 and day <= 366 => {
-					Date.from_yd(year, day.to_u16_try() ?? { crash "Unreachable" })->Ok()
+					Date.from_yd(
+						year,
+						day.to_u16_try() ?? {
+							crash "Unreachable"
+						},
+					)
+						|> Ok
 				}
 				_ => Err(InvalidDateFormat)
 			}
@@ -363,13 +432,19 @@ parse_ordinal_date_basic = |bytes| {
 	}
 }
 
-parse_ordinal_date_extended : List(U8) -> Try(Date, [InvalidDateFormat, ..])
+parse_ordinal_date_extended : List(U8) -> Try(Date, [InvalidDateFormat])
 parse_ordinal_date_extended = |bytes| {
 	match Utils.split_at_indices(bytes, [4, 5]) {
 		[year_bytes, _, day_bytes] => {
 			match (Utils.utf8_to_int_signed(year_bytes), Utils.utf8_to_int(day_bytes)) {
 				(Ok(year), Ok(day)) if day >= 1 and day <= 366 => {
-					Date.from_yd(year, day.to_u16_try() ?? { crash "Unreachable" })->Ok()
+					Date.from_yd(
+						year,
+						day.to_u16_try() ?? {
+							crash "Unreachable"
+						},
+					)
+						|> Ok
 				}
 				_ => Err(InvalidDateFormat)
 			}
@@ -378,13 +453,21 @@ parse_ordinal_date_extended = |bytes| {
 	}
 }
 
-parse_week_date_reduced_basic : List(U8) -> Try(Date, [InvalidDateFormat, ..])
+parse_week_date_reduced_basic : List(U8) -> Try(Date, [InvalidDateFormat])
 parse_week_date_reduced_basic = |bytes| {
 	match Utils.split_at_indices(bytes, [4, 5]) {
 		[year_bytes, _, week_bytes] => {
 			match (Utils.utf8_to_int(year_bytes), Utils.utf8_to_int(week_bytes)) {
 				(Ok(year), Ok(week)) if year <= 9223372036854775807 and week >= 1 and week <= 52 => {
-					Date.from_yw(year.to_i64_try() ?? { crash "Unreachable" }, week.to_u8_try() ?? { crash "Unreachable" })->Ok()
+					Date.from_yw(
+						year.to_i64_try() ?? {
+							crash "Unreachable"
+						},
+						week.to_u8_try() ?? {
+							crash "Unreachable"
+						},
+					)
+						|> Ok
 				}
 				_ => Err(InvalidDateFormat)
 			}
@@ -393,13 +476,21 @@ parse_week_date_reduced_basic = |bytes| {
 	}
 }
 
-parse_week_date_reduced_extended : List(U8) -> Try(Date, [InvalidDateFormat, ..])
+parse_week_date_reduced_extended : List(U8) -> Try(Date, [InvalidDateFormat])
 parse_week_date_reduced_extended = |bytes| {
 	match Utils.split_at_indices(bytes, [4, 6]) {
 		[year_bytes, _, week_bytes] => {
 			match (Utils.utf8_to_int(year_bytes), Utils.utf8_to_int(week_bytes)) {
 				(Ok(year), Ok(week)) if year <= 9223372036854775807 and week >= 1 and week <= 52 => {
-					Date.from_yw(year.to_i64_try() ?? { crash "Unreachable" }, week.to_u8_try() ?? { crash "Unreachable" })->Ok()
+					Date.from_yw(
+						year.to_i64_try() ?? {
+							crash "Unreachable"
+						},
+						week.to_u8_try() ?? {
+							crash "Unreachable"
+						},
+					)
+						|> Ok
 				}
 				_ => Err(InvalidDateFormat)
 			}
@@ -408,13 +499,24 @@ parse_week_date_reduced_extended = |bytes| {
 	}
 }
 
-parse_week_date_basic : List(U8) -> Try(Date, [InvalidDateFormat, ..])
+parse_week_date_basic : List(U8) -> Try(Date, [InvalidDateFormat])
 parse_week_date_basic = |bytes| {
 	match Utils.split_at_indices(bytes, [4, 5, 7]) {
 		[year_bytes, _, week_bytes, day_bytes] => {
 			match (Utils.utf8_to_int(year_bytes), Utils.utf8_to_int(week_bytes), Utils.utf8_to_int(day_bytes)) {
 				(Ok(y), Ok(w), Ok(d)) if y <= 9223372036854775807 and w >= 1 and w <= 52 and d >= 1 and d <= 7 => {
-					Date.from_ywd(y.to_i64_try() ?? { crash "Unreachable" }, w.to_u8_try() ?? { crash "Unreachable" }, d.to_u8_try() ?? { crash "Unreachable" })->Ok()
+					Date.from_ywd(
+						y.to_i64_try() ?? {
+							crash "Unreachable"
+						},
+						w.to_u8_try() ?? {
+							crash "Unreachable"
+						},
+						d.to_u8_try() ?? {
+							crash "Unreachable"
+						},
+					)
+						|> Ok
 				}
 				_ => Err(InvalidDateFormat)
 			}
@@ -423,13 +525,24 @@ parse_week_date_basic = |bytes| {
 	}
 }
 
-parse_week_date_extended : List(U8) -> Try(Date, [InvalidDateFormat, ..])
+parse_week_date_extended : List(U8) -> Try(Date, [InvalidDateFormat])
 parse_week_date_extended = |bytes| {
 	match Utils.split_at_indices(bytes, [4, 6, 8, 9]) {
 		[year_bytes, _, week_bytes, _, day_bytes] => {
 			match (Utils.utf8_to_int(year_bytes), Utils.utf8_to_int(week_bytes), Utils.utf8_to_int(day_bytes)) {
 				(Ok(y), Ok(w), Ok(d)) if y <= 9223372036854775807 and w >= 1 and w <= 52 and d >= 1 and d <= 7 => {
-					Date.from_ywd(y.to_i64_try() ?? { crash "Unreachable" }, w.to_u8_try() ?? { crash "Unreachable" }, d.to_u8_try() ?? { crash "Unreachable" })->Ok()
+					Date.from_ywd(
+						y.to_i64_try() ?? {
+							crash "Unreachable"
+						},
+						w.to_u8_try() ?? {
+							crash "Unreachable"
+						},
+						d.to_u8_try() ?? {
+							crash "Unreachable"
+						},
+					)
+						|> Ok
 				}
 				_ => Err(InvalidDateFormat)
 			}
@@ -438,13 +551,24 @@ parse_week_date_extended = |bytes| {
 	}
 }
 
-parse_calendar_date_basic : List(U8) -> Try(Date, [InvalidDateFormat, ..])
+parse_calendar_date_basic : List(U8) -> Try(Date, [InvalidDateFormat])
 parse_calendar_date_basic = |bytes| {
 	match Utils.split_at_indices(bytes, [4, 6]) {
 		[year_bytes, month_bytes, day_bytes] => {
 			match (Utils.utf8_to_int(year_bytes), Utils.utf8_to_int(month_bytes), Utils.utf8_to_int(day_bytes)) {
 				(Ok(y), Ok(m), Ok(d)) if y <= 9223372036854775807 and m >= 1 and m <= 12 and d >= 1 and d <= 31 => {
-					Date.from_ymd(y.to_i64_try() ?? { crash "Unreachable" }, m.to_u8_try() ?? { crash "Unreachable" }, d.to_u8_try() ?? { crash "Unreachable" })->Ok()
+					Date.from_ymd(
+						y.to_i64_try() ?? {
+							crash "Unreachable"
+						},
+						m.to_u8_try() ?? {
+							crash "Unreachable"
+						},
+						d.to_u8_try() ?? {
+							crash "Unreachable"
+						},
+					)
+						|> Ok
 				}
 				_ => Err(InvalidDateFormat)
 			}
@@ -453,13 +577,24 @@ parse_calendar_date_basic = |bytes| {
 	}
 }
 
-parse_calendar_date_extended : List(U8) -> Try(Date, [InvalidDateFormat, ..])
+parse_calendar_date_extended : List(U8) -> Try(Date, [InvalidDateFormat])
 parse_calendar_date_extended = |bytes| {
 	match Utils.split_at_indices(bytes, [4, 5, 7, 8]) {
 		[year_bytes, _, month_bytes, _, day_bytes] => {
 			match (Utils.utf8_to_int_signed(year_bytes), Utils.utf8_to_int(month_bytes), Utils.utf8_to_int(day_bytes)) {
 				(Ok(y), Ok(m), Ok(d)) if y <= 9223372036854775807 and m >= 1 and m <= 12 and d >= 1 and d <= 31 => {
-					Date.from_ymd(y.to_i64_try() ?? { crash "Unreachable" }, m.to_u8_try() ?? { crash "Unreachable" }, d.to_u8_try() ?? { crash "Unreachable" })->Ok()
+					Date.from_ymd(
+						y.to_i64_try() ?? {
+							crash "Unreachable"
+						},
+						m.to_u8_try() ?? {
+							crash "Unreachable"
+						},
+						d.to_u8_try() ?? {
+							crash "Unreachable"
+						},
+					)
+						|> Ok
 				}
 				_ => Err(InvalidDateFormat)
 			}

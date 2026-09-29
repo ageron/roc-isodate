@@ -9,12 +9,12 @@ import dt.DateTime
 
 main! = |_| {
 	utc_now = Utc.now!()
-	now_str = 
+	now_str =
 		(
 			utc_now
-				->Utc.to_nanos_since_epoch()
+				|> Utc.to_nanos_since_epoch
 				.to_i128_try()?
-				->DateTime.from_nanos_since_epoch(),
+				|> DateTime.from_nanos_since_epoch,
 		).to_iso_str()
 	_ = Stdout.line!("The current Zulu time is: ${now_str}")
 	Ok({})

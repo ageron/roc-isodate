@@ -15,6 +15,6 @@ main! = |_args| {
 	})
 	_ = now.date_time!()
 		.format("{MM}/{DD}/{YY} | {hh}:{mm}:{ss}")
-		->Stdout.line!()
+		|> Stdout.line!
 	Ok({})
 }

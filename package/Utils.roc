@@ -2,13 +2,13 @@ Utils :: {}.{
 	nanos_to_frac_str : I32 -> Str
 	nanos_to_frac_str = |nanos| {
 		length = count_frac_width(nanos)
-		num_str = trim_to_last_sig_fig(nanos).drop_prefix("-")->pad_left_ascii('0', length)
+		num_str = trim_to_last_sig_fig(nanos).drop_prefix("-") |> pad_left_ascii('0', length)
 		untrimmed_str = if nanos == 0 {
 			""
 		} else {
 			Str.concat(",", num_str)
 		}
-		untrimmed_str.to_utf8().take_first(length + 1)->Str.from_utf8_lossy()
+		untrimmed_str.to_utf8().take_first(length + 1) |> Str.from_utf8_lossy
 	}
 
 	replace_fx_format : Str, I32 -> Str
@@ -18,15 +18,15 @@ Utils :: {}.{
 			str
 		} else {
 			len = parse_frac_fmt(frac_fmt)
-			frac_str = nanos_to_frac_str(nanos).drop_prefix(",").to_utf8().take_first(len)->Str.from_utf8_lossy()
-			str->replace_first(frac_fmt, frac_str)
+			frac_str = nanos_to_frac_str(nanos).drop_prefix(",").to_utf8().take_first(len) |> Str.from_utf8_lossy
+			str |> replace_first(frac_fmt, frac_str)
 		}
 	}
 
 	validate_utf8_single_bytes : List(U8) -> Bool
 	validate_utf8_single_bytes = |u8_list| u8_list.all(|b| b < 128)
 
-	utf8_to_int : List(U8) -> Try(U64, [InvalidBytes, ..])
+	utf8_to_int : List(U8) -> Try(U64, [InvalidBytes])
 	utf8_to_int = |u8_list| {
 		u8_list
 			.rev()
@@ -35,7 +35,7 @@ Utils :: {}.{
 				|num_result, byte, index| {
 					num = num_result?
 					if 0x30 <= byte and byte <= 0x39 {
-						Ok(num + (byte.to_u64() - 0x30) * (10->pow_int(index)))
+						Ok(num + (byte.to_u64() - 0x30) * (10 |> pow_int(index)))
 					} else {
 						Err(InvalidBytes)
 					}
@@ -43,7 +43,7 @@ Utils :: {}.{
 			)
 	}
 
-	utf8_to_int_signed : List(U8) -> Try(I64, [InvalidBytes, ..])
+	utf8_to_int_signed : List(U8) -> Try(I64, [InvalidBytes])
 	utf8_to_int_signed = |u8_list| {
 		match u8_list {
 			['-', .. as xs] => {
@@ -61,7 +61,7 @@ Utils :: {}.{
 		}
 	}
 
-	utf8_to_frac : List(U8) -> Try(F64, [InvalidBytes, ..])
+	utf8_to_frac : List(U8) -> Try(F64, [InvalidBytes])
 	utf8_to_frac = |u8_list| {
 		match split_with_delims(u8_list, |b| b == ',' or b == '.') {
 			[head, [byte], tail] if byte == ',' or byte == '.' => {
@@ -97,7 +97,7 @@ Utils :: {}.{
 
 	expand_int_with_zeros : I64, U64 -> Str
 	expand_int_with_zeros = |num, target_length| {
-		num.to_str()->pad_left_ascii('0', target_length)
+		num.to_str() |> pad_left_ascii('0', target_length)
 	}
 
 	split_at_indices = |list, indices| {
@@ -134,7 +134,7 @@ split_with_delims_help = |list, check_delim, acc, curr| {
 		}
 		[x, .. as xs] => {
 			if check_delim(x) {
-				new_acc = 
+				new_acc =
 					if curr.len() == 0 {
 						acc.concat([[x]])
 					} else {
@@ -156,19 +156,19 @@ pad_left_ascii = |str, char, target_length| {
 	} else {
 		pad_len = target_length - str_len
 		padding = List.repeat(char, pad_len)
-		padding_str = padding->Str.from_utf8_lossy()
+		padding_str = padding |> Str.from_utf8_lossy
 		padding_str.concat(str)
 	}
 }
 
 trim_to_last_sig_fig : I32 -> Str
 trim_to_last_sig_fig = |num| {
-	num.to_str()->drop_trailing_zeros()
+	num.to_str() |> drop_trailing_zeros
 }
 
 drop_trailing_zeros : Str -> Str
 drop_trailing_zeros = |str| {
-	str.to_utf8()->drop_trailing_zeros_help()->Str.from_utf8_lossy()
+	str.to_utf8() |> drop_trailing_zeros_help |> Str.from_utf8_lossy
 }
 
 drop_trailing_zeros_help : List(U8) -> List(U8)
@@ -196,7 +196,7 @@ count_frac_width_help = |num, width| {
 get_frac_format : Str -> Str
 get_frac_format = |str| {
 	bytes = str.to_utf8()
-	(first, last, _) = 
+	(first, last, _) =
 		bytes.fold_with_index_until(
 			(0, 0, Bool.False),
 			|(start, end, is_frac), c, i| {
@@ -213,7 +213,7 @@ get_frac_format = |str| {
 			},
 		)
 	if first != last {
-		bytes.sublist({ start: first, len: last - first + 1 })->Str.from_utf8_lossy()
+		bytes.sublist({ start: first, len: last - first + 1 }) |> Str.from_utf8_lossy
 	} else {
 		""
 	}
@@ -221,7 +221,7 @@ get_frac_format = |str| {
 
 parse_frac_fmt : Str -> U64
 parse_frac_fmt = |fmt| {
-	fmt.drop_prefix("{f:").drop_suffix("}")->U64.from_str() ?? 9
+	fmt.drop_prefix("{f:").drop_suffix("}") |> U64.from_str ?? 9
 }
 
 move_decimal_point : F64, U8 -> F64
@@ -248,8 +248,8 @@ replace_first = |str, from, to| {
 		[] => str
 		[_] => str
 		[first, .. as rest] => {
-			after = rest->Str.join_with(from)
-			[first, after]->Str.join_with(to)
+			after = rest |> Str.join_with(from)
+			[first, after] |> Str.join_with(to)
 		}
 	}
 }

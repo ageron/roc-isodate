@@ -1,7 +1,7 @@
 ## A small effectful module to get the current date/time as Date, Time, or DateTime objects in a single call.
 ## ```
 ## import pf.Utc
-## import dt.Now 
+## import dt.Now
 ##
 ## now = Now.create({
 ##     now!: Utc.now!,
@@ -21,23 +21,23 @@ Now(a) :: { now! : () => a, now_to_nanos : a -> U128 }.{
 	## Convert a raw time value and converter function to a `DateTime`.
 	date_time_from : a, (a -> U128) -> DateTime
 	date_time_from = |val, now_to_nanos| {
-		nanos = val->now_to_nanos()->u128_to_i128_saturated()
+		nanos = val |> now_to_nanos |> u128_to_i128_saturated
 		DateTime.from_nanos_since_epoch(nanos)
 	}
 
 	## Convert a raw time value and converter function to a `Date`.
 	date_from : a, (a -> U128) -> Date
 	date_from = |val, now_to_nanos| {
-		nanos = val->now_to_nanos()->u128_to_i128_saturated()
+		nanos = val |> now_to_nanos |> u128_to_i128_saturated
 		Date.from_nanos_since_epoch(nanos)
 	}
 
 	## Convert a raw time value and converter function to a `Time`.
 	time_from : a, (a -> U128) -> Time
 	time_from = |val, now_to_nanos| {
-		nanos = val->now_to_nanos()
+		nanos = val |> now_to_nanos
 		(nanos % Const.nanos_per_day.to_u128_wrap()).to_i64_wrap()
-			->Time.from_nanos_since_midnight()
+			|> Time.from_nanos_since_midnight
 	}
 
 	## Get the current system time as a `DateTime`.
@@ -55,7 +55,11 @@ Now(a) :: { now! : () => a, now_to_nanos : a -> U128 }.{
 
 u128_to_i128_saturated = |n| {
 	max_i128 = I128.highest.to_u128_wrap()
-	if n > max_i128 { I128.highest } else { n.to_i128_wrap() }
+	if n > max_i128 {
+		I128.highest
+	} else {
+		n.to_i128_wrap()
+	}
 }
 
 # <===== TESTS ====>

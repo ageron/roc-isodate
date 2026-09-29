@@ -15,8 +15,10 @@ import Utils
 ## }
 ## ```
 Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
+
 	## Are two Times equal?
 	is_eq : _
+
 	## Get the hour of the `Time` object.
 	get_hour : Time -> I8
 	get_hour = |time| time.hour
@@ -32,7 +34,6 @@ Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
 	## Get the nanosecond of the `Time` object.
 	get_nanosecond : Time -> U32
 	get_nanosecond = |time| time.nanosecond
-
 
 	## Same as [`add_duration`](Time#add_duration)
 	add : Time, Duration -> Time
@@ -79,17 +80,17 @@ Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
 	order_relative_to : Time, Time -> [Before, Same, After]
 	order_relative_to = |a, b| {
 		a.hour.order_relative_to(b.hour)
-			->(|result| if result != Same {
+			|> (|result| if result != Same {
 				result
 			} else {
 				a.minute.order_relative_to(b.minute)
 			})
-			->(|result| if result != Same {
+			|> (|result| if result != Same {
 				result
 			} else {
 				a.second.order_relative_to(b.second)
 			})
-			->(|result| if result != Same {
+			|> (|result| if result != Same {
 				result
 			} else {
 				a.nanosecond.order_relative_to(b.nanosecond)
@@ -122,7 +123,7 @@ Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
 				.replace_first("{ss}", Utils.expand_int_with_zeros(time.second.to_i64(), 2))
 				.replace_first("{s}", time.second.to_str())
 				.replace_first("{f}", Utils.nanos_to_frac_str(time.nanosecond.to_i32_wrap()).drop_prefix(","))
-				->Utils.replace_fx_format(time.nanosecond.to_i32_wrap()),
+				|> Utils.replace_fx_format(time.nanosecond.to_i32_wrap()),
 		).replace_first("{n}", time.nanosecond.to_str())
 	}
 
@@ -135,32 +136,32 @@ Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
 	from_hmsn = |hour, minute, second, nanosecond| { hour: hour.to_i8_wrap(), minute: minute.to_u8_wrap(), second: second.to_u8_wrap(), nanosecond: nanosecond.to_u32_wrap() }
 
 	## Convert an ISO 8601 string to a `Time` object.
-	from_iso_str : Str -> Try(Time, [InvalidTimeFormat, ..])
-	from_iso_str = |str| str.to_utf8()->from_iso_u8()
+	from_iso_str : Str -> Try(Time, [InvalidTimeFormat])
+	from_iso_str = |str| str.to_utf8() |> from_iso_u8
 
 	## Convert an ISO 8601 list of UTF-8 bytes to a `Time` object.
-	from_iso_u8 : List(U8) -> Try(Time, [InvalidTimeFormat, ..])
+	from_iso_u8 : List(U8) -> Try(Time, [InvalidTimeFormat])
 	from_iso_u8 = |bytes| {
 		if Utils.validate_utf8_single_bytes(bytes) {
 			stripped_bytes = strip_t_and_z(bytes)
 			match (Utils.split_with_delims(stripped_bytes, |b| ['.', ',', '+', '-'].contains(b)), bytes.last()) {
 				# time.fractionaltime+timeoffset / time,fractionaltime-timeoffset
 				([time_bytes, [byte1], fractional_bytes, [byte2], offset_bytes], Ok(last_byte)) if last_byte != 'Z' => {
-					time_res = parse_fractional_time(time_bytes, [[byte1], fractional_bytes]->join())
-					offset_res = parse_time_offset([[byte2], offset_bytes]->join())
+					time_res = parse_fractional_time(time_bytes, [[byte1], fractional_bytes] |> join)
+					offset_res = parse_time_offset([[byte2], offset_bytes] |> join)
 					combine_time_and_offset_results(time_res, offset_res)
 				}
 
 				# time+timeoffset / time-timeoffset
 				([time_bytes, [byte1], offset_bytes], Ok(last_byte)) if (byte1 == '+' or byte1 == '-') and last_byte != 'Z' => {
 					time_res = parse_whole_time(time_bytes)
-					offset_res = parse_time_offset([[byte1], offset_bytes]->join())
+					offset_res = parse_time_offset([[byte1], offset_bytes] |> join)
 					combine_time_and_offset_results(time_res, offset_res)
 				}
 
 				# time.fractionaltime / time,fractionaltime
 				([time_bytes, [byte1], fractional_bytes], _) if byte1 == ',' or byte1 == '.' => {
-					parse_fractional_time(time_bytes, [[byte1], fractional_bytes]->join())
+					parse_fractional_time(time_bytes, [[byte1], fractional_bytes] |> join)
 				}
 
 				# time
@@ -234,13 +235,13 @@ Time :: { hour : I8, minute : U8, second : U8, nanosecond : U32 }.{
 combine_time_and_offset_results = |time_res, offset_res| {
 	match (time_res, offset_res) {
 		(Ok(time), Ok(offset)) => {
-			Time.add_duration(time, offset)->Ok()
+			Time.add_duration(time, offset) |> Ok
 		}
 		_ => Err(InvalidTimeFormat)
 	}
 }
 
-parse_whole_time : List(U8) -> Try(Time, [InvalidTimeFormat, ..])
+parse_whole_time : List(U8) -> Try(Time, [InvalidTimeFormat])
 parse_whole_time = |bytes| {
 	match bytes {
 		[_, _] => parse_local_time_hour(bytes) # hh
@@ -252,45 +253,45 @@ parse_whole_time = |bytes| {
 	}
 }
 
-parse_fractional_time : List(U8), List(U8) -> Try(Time, [InvalidTimeFormat, ..])
+parse_fractional_time : List(U8), List(U8) -> Try(Time, [InvalidTimeFormat])
 parse_fractional_time = |whole_bytes, fractional_bytes| {
 	add_duration_and_time = |d, t| Time.add_duration(t, d)
 	match (whole_bytes, Utils.utf8_to_frac(fractional_bytes)) {
 		([_, _], Ok(frac)) => { # hh
 			time = parse_local_time_hour(whole_bytes)?
-			ns = (frac * Const.nanos_per_hour.to_f64())->round()
-			Duration.from_nanoseconds(ns.to_i128())->add_duration_and_time(time)->Ok
+			ns = (frac * Const.nanos_per_hour.to_f64()) |> round
+			Duration.from_nanoseconds(ns.to_i128()) |> add_duration_and_time(time) |> Ok
 		}
 
 		([_, _, _, _], Ok(frac)) => { # hhmm
 			time = parse_local_time_minute_basic(whole_bytes)?
-			ns = (frac * Const.nanos_per_minute.to_f64())->round()
-			Duration.from_nanoseconds(ns.to_i128())->add_duration_and_time(time)->Ok
+			ns = (frac * Const.nanos_per_minute.to_f64()) |> round
+			Duration.from_nanoseconds(ns.to_i128()) |> add_duration_and_time(time) |> Ok
 		}
 
 		([_, _, ':', _, _], Ok(frac)) => { # hh:mm
 			time = parse_local_time_minute_extended(whole_bytes)?
-			ns = (frac * Const.nanos_per_minute.to_f64())->round()
-			Duration.from_nanoseconds(ns.to_i128())->add_duration_and_time(time)->Ok
+			ns = (frac * Const.nanos_per_minute.to_f64()) |> round
+			Duration.from_nanoseconds(ns.to_i128()) |> add_duration_and_time(time) |> Ok
 		}
 
 		([_, _, _, _, _, _], Ok(frac)) => { # hhmmss
 			time = parse_local_time_basic(whole_bytes)?
-			ns = (frac * Const.nanos_per_second.to_f64())->round()
-			Duration.from_nanoseconds(ns.to_i128())->add_duration_and_time(time)->Ok
+			ns = (frac * Const.nanos_per_second.to_f64()) |> round
+			Duration.from_nanoseconds(ns.to_i128()) |> add_duration_and_time(time) |> Ok
 		}
 
 		([_, _, ':', _, _, ':', _, _], Ok(frac)) => { # hh:mm:ss
 			time = parse_local_time_extended(whole_bytes)?
-			ns = (frac * Const.nanos_per_second.to_f64())->round()
-			Duration.from_nanoseconds(ns.to_i128())->add_duration_and_time(time)->Ok
+			ns = (frac * Const.nanos_per_second.to_f64()) |> round
+			Duration.from_nanoseconds(ns.to_i128()) |> add_duration_and_time(time) |> Ok
 		}
 
 		_ => Err(InvalidTimeFormat)
 	}
 }
 
-parse_time_offset : List(U8) -> Try(Duration, [InvalidTimeFormat, ..])
+parse_time_offset : List(U8) -> Try(Duration, [InvalidTimeFormat])
 parse_time_offset = |bytes| {
 	match bytes {
 		['-', h1, h2] => {
@@ -321,7 +322,7 @@ parse_time_offset = |bytes| {
 	}
 }
 
-parse_time_offset_help : U8, U8, U8, U8, I64 -> Try(Duration, [InvalidTimeFormat, ..])
+parse_time_offset_help : U8, U8, U8, U8, I64 -> Try(Duration, [InvalidTimeFormat])
 parse_time_offset_help = |h1, h2, m1, m2, sign| {
 	is_valid_offset = |offset| {
 		if offset >= -14 * Const.nanos_per_hour.to_i64() and offset <= 12 * Const.nanos_per_hour.to_i64() {
@@ -334,7 +335,7 @@ parse_time_offset_help = |h1, h2, m1, m2, sign| {
 		(Ok(hour), Ok(minute)) => {
 			offset_nanos = sign * (hour * Const.nanos_per_hour.to_i64() + minute * Const.nanos_per_minute.to_i64())
 			match is_valid_offset(offset_nanos) {
-				Valid => Duration.from_nanoseconds(offset_nanos.to_i128())->Ok
+				Valid => Duration.from_nanoseconds(offset_nanos.to_i128()) |> Ok
 				Invalid => Err(InvalidTimeFormat)
 			}
 		}
@@ -343,28 +344,28 @@ parse_time_offset_help = |h1, h2, m1, m2, sign| {
 	}
 }
 
-parse_local_time_hour : List(U8) -> Try(Time, [InvalidTimeFormat, ..])
+parse_local_time_hour : List(U8) -> Try(Time, [InvalidTimeFormat])
 parse_local_time_hour = |bytes| {
 	match Utils.utf8_to_int_signed(bytes) {
 		Ok(hour) if hour >= 0 and hour <= 24 => {
-			Time.from_hms(hour, 0, 0)->Ok
+			Time.from_hms(hour, 0, 0) |> Ok
 		}
 
 		_ => Err(InvalidTimeFormat)
 	}
 }
 
-parse_local_time_minute_basic : List(U8) -> Try(Time, [InvalidTimeFormat, ..])
+parse_local_time_minute_basic : List(U8) -> Try(Time, [InvalidTimeFormat])
 parse_local_time_minute_basic = |bytes| {
 	match Utils.split_at_indices(bytes, [2]) {
 		[hour_bytes, minute_bytes] => {
 			match (Utils.utf8_to_int_signed(hour_bytes), Utils.utf8_to_int_signed(minute_bytes)) {
 				(Ok(hour), Ok(minute)) if hour >= 0 and hour <= 23 and minute >= 0 and minute <= 59 => {
-					Time.from_hms(hour, minute, 0)->Ok
+					Time.from_hms(hour, minute, 0) |> Ok
 				}
 
 				(Ok(24), Ok(0)) => {
-					Time.from_hms(24, 0, 0)->Ok
+					Time.from_hms(24, 0, 0) |> Ok
 				}
 
 				_ => Err(InvalidTimeFormat)
@@ -375,17 +376,17 @@ parse_local_time_minute_basic = |bytes| {
 	}
 }
 
-parse_local_time_minute_extended : List(U8) -> Try(Time, [InvalidTimeFormat, ..])
+parse_local_time_minute_extended : List(U8) -> Try(Time, [InvalidTimeFormat])
 parse_local_time_minute_extended = |bytes| {
 	match Utils.split_at_indices(bytes, [2, 3]) {
 		[hour_bytes, _, minute_bytes] => {
 			match (Utils.utf8_to_int_signed(hour_bytes), Utils.utf8_to_int_signed(minute_bytes)) {
 				(Ok(hour), Ok(minute)) if hour >= 0 and hour <= 23 and minute >= 0 and minute <= 59 => {
-					Time.from_hms(hour, minute, 0)->Ok
+					Time.from_hms(hour, minute, 0) |> Ok
 				}
 
 				(Ok(24), Ok(0)) => {
-					Time.from_hms(24, 0, 0)->Ok
+					Time.from_hms(24, 0, 0) |> Ok
 				}
 
 				_ => Err(InvalidTimeFormat)
@@ -396,17 +397,17 @@ parse_local_time_minute_extended = |bytes| {
 	}
 }
 
-parse_local_time_basic : List(U8) -> Try(Time, [InvalidTimeFormat, ..])
+parse_local_time_basic : List(U8) -> Try(Time, [InvalidTimeFormat])
 parse_local_time_basic = |bytes| {
 	match Utils.split_at_indices(bytes, [2, 4]) {
 		[hour_bytes, minute_bytes, second_bytes] => {
 			match (Utils.utf8_to_int_signed(hour_bytes), Utils.utf8_to_int_signed(minute_bytes), Utils.utf8_to_int_signed(second_bytes)) {
 				(Ok(h), Ok(m), Ok(s)) if h >= 0 and h <= 23 and m >= 0 and m <= 59 and s >= 0 and s <= 59 => {
-					Time.from_hms(h, m, s)->Ok
+					Time.from_hms(h, m, s) |> Ok
 				}
 
 				(Ok(24), Ok(0), Ok(0)) => {
-					Time.from_hms(24, 0, 0)->Ok
+					Time.from_hms(24, 0, 0) |> Ok
 				}
 
 				_ => Err(InvalidTimeFormat)
@@ -417,17 +418,17 @@ parse_local_time_basic = |bytes| {
 	}
 }
 
-parse_local_time_extended : List(U8) -> Try(Time, [InvalidTimeFormat, ..])
+parse_local_time_extended : List(U8) -> Try(Time, [InvalidTimeFormat])
 parse_local_time_extended = |bytes| {
 	match Utils.split_at_indices(bytes, [2, 3, 5, 6]) {
 		[hour_bytes, _, minute_bytes, _, second_bytes] => {
 			match (Utils.utf8_to_int_signed(hour_bytes), Utils.utf8_to_int_signed(minute_bytes), Utils.utf8_to_int_signed(second_bytes)) {
 				(Ok(h), Ok(m), Ok(s)) if h >= 0 and h <= 23 and m >= 0 and m <= 59 and s >= 0 and s <= 59 => {
-					Time.from_hms(h, m, s)->Ok
+					Time.from_hms(h, m, s) |> Ok
 				}
 
 				(Ok(24), Ok(0), Ok(0)) => {
-					Time.from_hms(24, 0, 0)->Ok
+					Time.from_hms(24, 0, 0) |> Ok
 				}
 
 				_ => Err(InvalidTimeFormat)
@@ -510,7 +511,6 @@ expect Time.from_nanos_since_midnight(-123) == Time.from_hmsn(-1, 59, 59, 999_99
 expect Time.from_nanos_since_midnight(0) == Time.midnight
 expect Time.from_nanos_since_midnight((24 * Const.nanos_per_hour)) == Time.from_hms(24, 0, 0)
 expect Time.from_nanos_since_midnight((25 * Const.nanos_per_hour)) == Time.from_hms(25, 0, 0)
-
 
 # <---- sub ---->
 expect Time.sub(Time.from_hms(12, 34, 56), Time.from_hms(12, 34, 55)) == Duration.from_seconds(1.I128)
